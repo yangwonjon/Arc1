@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>출석 체크</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; text-align: center; }
+
+    .navbar {
+      background-color: #333;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .navbar a {
+      color: white;
+      padding: 14px 30px;
+      text-decoration: none;
+      font-size: 15px;
+      border-right: 1px solid #555;
+      cursor: pointer;
+    }
+    .navbar a:first-child { border-left: 1px solid #555; }
+    .navbar a:hover { background-color: #555; }
+
+    .page { display: none; padding: 40px 20px; }
+    .page.active { display: block; }
+
+    .logo-text {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      letter-spacing: 3px;
+      color: #333;
+    }
+
+    .name-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px auto;
+      max-width: 400px;
+    }
+    .name-btn {
+      padding: 10px 20px;
+      font-size: 15px;
+      border: 2px solid #333;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .name-btn.selected {
+      background: #333;
+      color: white;
+    }
+
+    button#checkBtn {
+      padding: 10px 30px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    #list { margin-top: 30px; display: block; text-align: center; }
+    table { border-collapse: collapse; width: 500px; margin: 0 auto; }
+    th, td { border: 1px solid #ddd; padding: 8px 16px; text-align: center; }
+    th { background-color: #f2f2f2; }
+    #statusMsg { margin-top: 10px; font-size: 14px; color: gray; }
+
+    .running-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .running-form input[type="text"] {
+      width: 250px;
+      padding: 10px;
+    }
+    #runningMsg { margin-top: 10px; font-size: 14px; color: gray; }
+
+    .notice-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .notice-form input, .notice-form textarea {
+      width: 400px;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .notice-form textarea {
+      height: 100px;
+      resize: vertical;
+    }
+
+    .notice-author-row {
+      display: flex;
+      gap: 8px;
+      width: 400px;
+    }
+    .notice-author-row input:first-child { flex: 1; }
+    .notice-author-row input:last-child { width: 110px; flex-shrink: 0; }
+
+    .notice-list {
+      margin-top: 30px;
+      width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: left;
+    }
+    .notice-item {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px 20px;
+      margin-bottom: 15px;
+      background: #fafafa;
+      position: relative;
+    }
+    .notice-item h4 {
+      font-size: 16px;
+      margin-bottom: 6px;
+      padding-right: 60px;
+    }
+    .notice-item p {
+      font-size: 14px;
+      color: #444;
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+    }
+    .notice-meta {
+      font-size: 12px;
+      color: #aaa;
+    }
+    #noticeMsg { margin-top: 10px; font-size: 14px; color: gray; }
+
+    .delete-btn {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .delete-btn:hover { background: #c0392b; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <a onclick="showPage('home')">홈</a>
+    <a onclick="showPage('visitors')">최근 접속 목록</a>
+    <a onclick="showPage('notice')">공지사항</a>
+    <a onclick="showPage('etc')">기타</a>
+  </div>
+
+  <!-- 홈 -->
+  <div class="page active" id="page-home">
+    <div style="margin-top:40px;">
+      <div class="logo-text">ARC</div>
+      <h2>출석 체크</h2>
+      <div class="name-buttons">
+        <button class="name-btn" onclick="selectName(this)">고영지</button>
+        <button class="name-btn" onclick="selectName(this)">김민수</button>
+        <button class="name-btn" onclick="selectName(this)">윤민혁</button>
+        <button class="name-btn" onclick="selectName(this)">송지용</button>
+        <button class="name-btn" onclick="selectName(this)">김해건</button>
+        <button class="name-btn" onclick="selectName(this)">양원준</button>
+        <button class="name-btn" onclick="selectName(this)">지항민</button>
+      </div>
+      <button id="checkBtn">출석</button>
+      <div id="statusMsg">위치 확인 중...</div>
+      <div id="list">
+        <h3 id="listTitle">출석 목록</h3>
+        <table>
+          <thead>
+            <tr><th>번호</th><th>이름</th><th>날짜</th><th>시간</th><th>출석률</th></tr>
+          </thead>
+          <tbody id="attendanceBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 최근 접속 목록 -->
+  <div class="page" id="page-visitors">
+    <div style="margin-top:40px;">
+      <h2>최근 접속 목록</h2>
+      <table style="margin-top:20px;">
+        <thead>
+          <tr><th>번호</th><th>기기</th><th>날짜</th><th>시간</th></tr>
+        </thead>
+        <tbody id="visitorsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 공지사항 -->
+  <div class="page" id="page-notice">
+    <div style="margin-top:40px;">
+      <h2>공지사항</h2>
+      <div class="notice-form">
+        <div class="notice-author-row">
+          <input type="text" id="noticeAuthor" placeholder="작성자 이름">
+          <input type="password" id="noticePassword" placeholder="암호 4자리" maxlength="4" inputmode="numeric">
+        </div>
+        <input type="text" id="noticeTitle" placeholder="제목">
+        <textarea id="noticeContent" placeholder="내용"></textarea>
+        <button id="saveNoticeBtn">글쓰기</button>
+        <div id="noticeMsg"></div>
+      </div>
+      <div class="notice-list" id="noticeList"></div>
+    </div>
+  </div>
+
+  <!-- 기타 -->
+  <div class="page" id="page-etc">
+    <div style="margin-top:40px;">
+      <h2>러닝 기록</h2>
+      <div class="running-form">
+        <input type="text" id="runName" placeholder="이름">
+        <input type="text" id="runDistance" placeholder="거리 (예: 3.46)">
+        <input type="text" id="runPace" placeholder="페이스 (예: 5'37&quot;)">
+        <input type="text" id="runDuration" placeholder="시간 (예: 19:25)">
+        <button id="saveRunBtn">저장</button>
+        <div id="runningMsg"></div>
+      </div>
+      <table style="margin: 30px auto 0; width: 600px;">
+        <thead>
+          <tr><th>번호</th><th>이름</th><th>거리(km)</th><th>페이스</th><th>시간</th><th>날짜</th></tr>
+        </thead>
+        <tbody id="runningBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL = 12;
+    const TARGET_LAT = 33.2549383;
+    const TARGET_LNG = 126.3285698;
+    const MAX_DISTANCE_KM = 5;
+
+    const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    document.getElementById('listTitle').textContent = `${MONTHS[new Date().getMonth()]} 출석 목록`;
+
+    let selectedName = '';
+
+    function selectName(btn) {
+      document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedName = btn.textContent;
+    }
+
+    const supabaseClient = window.supabase.createClient(
+      "https://ndctjtuxpkwdldhqbnih.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY"
+    );
+
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + id).classList.add('active');
+      if (id === 'visitors') loadVisitors();
+      if (id === 'etc') loadRunning();
+      if (id === 'notice') loadNotices();
+    }
+
+    function getDevice() {
+      const ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod/.test(ua)) return '아이폰';
+      if (/Android/.test(ua)) return '안드로이드';
+      if (/Windows/.test(ua)) return 'Windows PC';
+      if (/Mac/.test(ua)) return 'Mac';
+      return '기타';
+    }
+
+    function getDeviceId() {
+      let id = localStorage.getItem('device_id');
+      if (!id) {
+        id = 'dev_' + Math.random().toString(36).substr(2, 16);
+        localStorage.setItem('device_id', id);
+      }
+      return id;
+    }
+
+    function getDistanceKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat/2)*Math.sin(dLat/2) +
+        Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+        Math.sin(dLng/2)*Math.sin(dLng/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    async function logVisitor() {
+      await supabaseClient.from('visitors').insert([{ device: getDevice() }]);
+    }
+
+    async function loadVisitors() {
+      const { data, error } = await supabaseClient
+        .from('visitors').select('*')
+        .order('created_at', { ascending: false }).limit(3);
+      if (error) return;
+      const tbody = document.getElementById('visitorsBody');
+      tbody.innerHTML = '';
+      data.forEach((row, i) => {
+        const d = new Date(row.created_at);
+        tbody.innerHTML += `<tr>
+          <td>${i+1}</td>
+          <td>${row.device}</td>
+          <td>${d.toLocaleDateString('ko-KR')}</td>
+          <td>${d.toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'})}</td>
+        </tr>`;
+      });
+    }
+
+    async function loadList() {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayData } = await supabaseClient.from('attendance').select('*')
+        .gte('created_at', today+'T00:00:00').lte('created_at', today+'T23:59:59')
+        .order('created_at', { ascending: true });
+      const { data: allData } = await supabaseClient.from('attendance').select('name');
+      if (!todayData || !allData) return;
+
+      const countMap = {};
+      allData.forEach(r => { countMap[r.name] = (countMap[r.name]||0)+1; });
+
+      const seen = new Set();
+      const unique = todayData.filter(r => {
+        if (seen.has(r.name)) return false;
+        seen.add(r.name); return true;
+      });
+
+      const tbody = document.getElementById('attendanceBody');
+      tbody.innerHTML = '';
+      unique.forEach((row, i) => {
+        const d = new Date(row.created_at);
+        tbody.innerHTML += `<tr>
+          <td>${i+1}</td>
+          <td>${row.name}</td>
+          <td>${d.toLocaleDateString('ko-KR')}</td>
+          <td>${d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</td>
+          <td>${Math.round(((countMap[row.name]||1)/TOTAL)*100)}%</td>
+        </tr>`;
+      });
+    }
+
+    async function checkIn() {
+      if (!selectedName) { alert('이름을 선택해주세요'); return; }
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.textContent = '위치 확인 중...';
+      const deviceId = getDeviceId();
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existing } = await supabaseClient.from('attendance').select('id')
+        .eq('device_id', deviceId)
+        .gte('created_at', today+'T00:00:00').lte('created_at', today+'T23:59:59');
+      if (existing && existing.length > 0) {
+        statusMsg.textContent = '❌ 오늘 이미 출석했어요';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const dist = getDistanceKm(pos.coords.latitude, pos.coords.longitude, TARGET_LAT, TARGET_LNG);
+          if (dist > MAX_DISTANCE_KM) {
+            statusMsg.textContent = `❌ 출석 불가 — ${dist.toFixed(1)}km 떨어져 있음`;
+            return;
+          }
+          const { error } = await supabaseClient.from('attendance').insert([{ name: selectedName, device_id: deviceId }]);
+          if (error) { alert('에러: '+error.message); }
+          else {
+            statusMsg.textContent = `✅ 출석 완료 (${dist.toFixed(1)}km 이내)`;
+            selectedName = '';
+            document.querySelectorAll('.name-btn').forEach(b => b.classList.remove('selected'));
+            loadList();
+          }
+        },
+        () => { statusMsg.textContent = '❌ 위치 권한을 허용해주세요'; },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+      );
+    }
+
+    // 공지사항 저장
+    document.getElementById('saveNoticeBtn').addEventListener('click', async () => {
+      const author = document.getElementById('noticeAuthor').value.trim();
+      const password = document.getElementById('noticePassword').value.trim();
+      const title = document.getElementById('noticeTitle').value.trim();
+      const content = document.getElementById('noticeContent').value.trim();
+      const msg = document.getElementById('noticeMsg');
+
+      if (!author || !password || !title || !content) { alert('모두 입력해주세요'); return; }
+      if (!/^\d{4}$/.test(password)) { alert('암호는 숫자 4자리로 입력해주세요'); return; }
+
+      const { error } = await supabaseClient.from('notices').insert([{ author, title, content, password }]);
+      if (error) {
+        msg.textContent = '❌ 저장 실패: ' + error.message;
+      } else {
+        msg.textContent = '✅ 등록 완료!';
+        document.getElementById('noticeAuthor').value = '';
+        document.getElementById('noticePassword').value = '';
+        document.getElementById('noticeTitle').value = '';
+        document.getElementById('noticeContent').value = '';
+        loadNotices();
+      }
+    });
+
+    // 공지사항 불러오기
+    async function loadNotices() {
+      const { data, error } = await supabaseClient.from('notices').select('*')
+        .order('created_at', { ascending: false });
+      if (error) return;
+      const list = document.getElementById('noticeList');
+      list.innerHTML = '';
+      if (data.length === 0) {
+        list.innerHTML = '<p style="color:#aaa;margin-top:20px;">등록된 공지사항이 없어요</p>';
+        return;
+      }
+      data.forEach(row => {
+        const d = new Date(row.created_at);
+        list.innerHTML += `
+          <div class="notice-item">
+            <button class="delete-btn" onclick="deleteNotice(${row.id})">삭제</button>
+            <h4>${row.title}</h4>
+            <p>${row.content}</p>
+            <div class="notice-meta">${row.author} · ${d.toLocaleDateString('ko-KR')} ${d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        `;
+      });
+    }
+
+    // 공지사항 삭제 - DB에서 직접 password 가져와서 비교
+    async function deleteNotice(id) {
+      const input = prompt('암호 4자리를 입력하세요');
+      if (input === null) return;
+
+      const { data, error } = await supabaseClient
+        .from('notices').select('password').eq('id', id).single();
+
+      if (error || !data) { alert('게시글을 찾을 수 없어요'); return; }
+      if (input !== data.password) { alert('❌ 암호가 틀렸어요'); return; }
+
+      const { error: delError } = await supabaseClient.from('notices').delete().eq('id', id);
+      if (delError) { alert('삭제 실패: ' + delError.message); }
+      else { loadNotices(); }
+    }
+
+    // 러닝 저장
+    document.getElementById('saveRunBtn').addEventListener('click', async () => {
+      const name = document.getElementById('runName').value.trim();
+      const distance = document.getElementById('runDistance').value.trim();
+      const pace = document.getElementById('runPace').value.trim();
+      const duration = document.getElementById('runDuration').value.trim();
+      if (!name || !distance || !pace || !duration) { alert('모두 입력해주세요'); return; }
+      const { error } = await supabaseClient.from('running').insert([{
+        name, distance: parseFloat(distance), pace, duration
+      }]);
+      const msg = document.getElementById('runningMsg');
+      if (error) {
+        msg.textContent = '❌ 저장 실패: ' + error.message;
+      } else {
+        msg.textContent = '✅ 저장 완료!';
+        document.getElementById('runName').value = '';
+        document.getElementById('runDistance').value = '';
+        document.getElementById('runPace').value = '';
+        document.getElementById('runDuration').value = '';
+        loadRunning();
+      }
+    });
+
+    async function loadRunning() {
+      const { data, error } = await supabaseClient.from('running').select('*')
+        .order('created_at', { ascending: false });
+      if (error) return;
+      const tbody = document.getElementById('runningBody');
+      tbody.innerHTML = '';
+      data.forEach((row, i) => {
+        const d = new Date(row.created_at);
+        tbody.innerHTML += `<tr>
+          <td>${i+1}</td>
+          <td>${row.name}</td>
+          <td>${row.distance}</td>
+          <td>${row.pace}</td>
+          <td>${row.duration}</td>
+          <td>${d.toLocaleDateString('ko-KR')}</td>
+        </tr>`;
+      });
+    }
+
+    document.getElementById('checkBtn').addEventListener('click', checkIn);
+
+    logVisitor();
+    loadList();
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = getDistanceKm(pos.coords.latitude, pos.coords.longitude, TARGET_LAT, TARGET_LNG);
+        document.getElementById('statusMsg').textContent = dist <= MAX_DISTANCE_KM
+          ? `✅ 출석 가능 위치 (${dist.toFixed(1)}km 이내)`
+          : `❌ 출석 불가 위치 — ${dist.toFixed(1)}km 떨어져 있음`;
+      },
+      () => { document.getElementById('statusMsg').textContent = '❌ 위치 권한을 허용해주세요'; },
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+    );
+  </script>
+
+</body>
+</html>
