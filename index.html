@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARC2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; text-align: center; }
+
+    .navbar {
+      background-color: #333;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .navbar a {
+      color: white; padding: 14px 30px;
+      text-decoration: none; font-size: 15px;
+      border-right: 1px solid #555; cursor: pointer;
+    }
+    .navbar a:first-child { border-left: 1px solid #555; }
+    .navbar a:hover { background-color: #555; }
+
+    .page { display: none; padding: 20px 20px; }
+    .page.active { display: block; }
+
+    .home-content { display: flex; flex-direction: column; align-items: center; gap: 30px; padding-top: 20px; }
+    .home-logo img { width: 300px; border-radius: 12px; }
+
+    .notice-btn {
+      padding: 12px 40px; font-size: 16px;
+      background-color: #333; color: white;
+      border: none; border-radius: 8px; cursor: pointer; transition: 0.2s;
+    }
+    .notice-btn:hover { background-color: #555; }
+
+    .modal {
+      display: none; position: fixed; z-index: 1000;
+      left: 0; top: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .modal-content {
+      background-color: white; padding: 40px 30px; border-radius: 12px;
+      max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px;
+    }
+    .modal-header h2 { font-size: 20px; margin: 0; }
+    .close-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: #333; }
+    .close-btn:hover { color: #666; }
+    .notice-text { text-align: left; font-size: 14px; line-height: 1.8; color: #333; }
+    .notice-text strong { display: block; margin-top: 15px; font-size: 15px; }
+    .notice-text ul { margin: 10px 0 0 20px; list-style: none; }
+    .notice-text ul li { margin: 8px 0; }
+    .notice-text ul li:before { content: "- "; font-weight: bold; }
+
+    /* 위치 상태바 */
+    .loc-bar {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin: 8px auto 0; padding: 10px 20px;
+      border-radius: 30px; font-size: 13px; font-weight: bold;
+      max-width: 360px; transition: all .3s;
+      background: #f0f0f0; color: #888;
+    }
+    .loc-bar.ok  { background: #e6f9ee; color: #27ae60; }
+    .loc-bar.bad { background: #fdecea; color: #e74c3c; }
+    .loc-bar.checking { background: #fff8e1; color: #f39c12; }
+    .loc-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* 멤버 버튼 그리드 */
+    .member-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+      max-width: 560px;
+      margin: 16px auto 0;
+      padding: 0 10px;
+    }
+    .member-card {
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      padding: 18px 10px;
+      background: white;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .member-card:hover { border-color: #333; background: #f9f9f9; }
+    .member-card.done { border-color: #27ae60; background: #e6f9ee; }
+    .member-card.done .member-name { color: #27ae60; }
+    .member-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; }
+    .member-count { font-size: 12px; color: #999; }
+    .member-check { font-size: 22px; margin-bottom: 4px; }
+
+    /* 관리자 조정 테이블 */
+    .attendance-table-wrap { overflow-x: auto; margin-top: 16px; }
+    .attendance-table {
+      border-collapse: collapse; width: 100%;
+      max-width: 600px; margin: 0 auto;
+    }
+    .attendance-table th, .attendance-table td {
+      border: 1px solid #ddd; padding: 10px 14px;
+      text-align: center; font-size: 14px;
+    }
+    .attendance-table th { background-color: #f2f2f2; font-weight: bold; }
+    .count-cell { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .count-btn {
+      width: 28px; height: 28px; border: 1px solid #999;
+      background: white; border-radius: 4px; font-size: 16px;
+      cursor: pointer; line-height: 1;
+    }
+    .count-btn:hover { background: #eee; }
+
+    .running-form {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 12px; margin-top: 20px;
+    }
+    .running-form input[type="text"] { width: 250px; padding: 10px; }
+    #runningMsg { margin-top: 10px; font-size: 14px; color: gray; }
+
+    .notice-form {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 10px; margin-top: 20px;
+    }
+    .notice-form input, .notice-form textarea {
+      width: 400px; padding: 10px; font-size: 14px;
+      border: 1px solid #ddd; border-radius: 6px;
+    }
+    .notice-form textarea { height: 100px; resize: vertical; }
+    .notice-author-row { display: flex; gap: 8px; width: 400px; }
+    .notice-author-row input:first-child { flex: 1; }
+    .notice-author-row input:last-child { width: 110px; flex-shrink: 0; }
+
+    .notice-list {
+      margin-top: 30px; width: 500px;
+      margin-left: auto; margin-right: auto; text-align: left;
+    }
+    .notice-item {
+      border: 1px solid #ddd; border-radius: 8px;
+      padding: 15px 20px; margin-bottom: 15px;
+      background: #fafafa; position: relative;
+    }
+    .notice-item h4 { font-size: 16px; margin-bottom: 6px; padding-right: 60px; }
+    .notice-item p { font-size: 14px; color: #444; margin-bottom: 8px; white-space: pre-wrap; }
+    .notice-meta { font-size: 12px; color: #aaa; }
+    #noticeMsg { margin-top: 10px; font-size: 14px; color: gray; }
+
+    .delete-btn {
+      position: absolute; top: 12px; right: 14px;
+      background: #e74c3c; color: white; border: none;
+      border-radius: 5px; padding: 4px 10px;
+      font-size: 12px; cursor: pointer;
+    }
+    .delete-btn:hover { background: #c0392b; }
+
+    @media (max-width: 600px) {
+      .navbar a { padding: 10px 12px; font-size: 13px; }
+      .home-logo img { width: 90vw; max-width: 300px; }
+      .attendance-table th, .attendance-table td { padding: 8px 8px; font-size: 13px; }
+      .notice-form input, .notice-form textarea { width: 90vw; }
+      .notice-author-row { width: 90vw; }
+      .notice-list { width: 90vw; }
+      .running-form input[type="text"] { width: 90vw; }
+      .member-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    }
+    @media (min-width: 769px) {
+      .home-logo img { width: 400px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <a onclick="showPage('home')">홈</a>
+    <a onclick="showPage('attendance')">출석 체크</a>
+    <a onclick="showPage('freeboard')">자유게시판</a>
+    <a onclick="showPage('etc')">기타</a>
+  </div>
+
+  <!-- 홈 -->
+  <div class="page active" id="page-home">
+    <div class="home-content">
+      <div class="home-logo"><img src="logo.png"></div>
+      <button class="notice-btn" onclick="openNoticeModal()">공지사항</button>
+    </div>
+  </div>
+
+  <!-- 공지사항 모달 -->
+  <div class="modal" id="noticeModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>ARC 2기 공지사항</h2>
+        <button class="close-btn" onclick="closeNoticeModal()">&times;</button>
+      </div>
+      <div class="notice-text">
+        <strong>1. 회비는 월 2만원입니다.</strong>
+        <ul>
+          <li>15일~20일 사이 편하신 날에 입금해주시면 됩니다</li>
+          <li>회비는 회식 제외, 모두의 활동에 사용될 예정입니다</li>
+          <li>카뱅 3333-16-7331916</li>
+        </ul>
+        <strong>2. 정기모임은 수.금.토 3일입니다 (시간은 8시)</strong>
+        <ul>
+          <li>4주 기준 12일, 참석률 33.3% 미만 시 다음 달 회비 2배입니다.</li>
+          <li>정기운동에 참석 못한 경우에는 대체요일에 3KM 이상 시 인정합니다</li>
+        </ul>
+        <strong>3. 참석보고카톡 당일 오후 7시까지 못올리면 당일 벌금 5000원입니다</strong>
+        <ul>
+          <li>불참은 죄가 아니니 카톡은 바로바로 올리면 좋을 것 같습니다</li>
+        </ul>
+        <strong>4. 꾸준히 오래가는 ARC가 되었으면 좋겠습니다</strong>
+        <ul><li>ARC 화이팅!</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 출석 체크 -->
+  <div class="page" id="page-attendance">
+    <h2 style="margin-bottom:6px;">출석 체크</h2>
+    <p style="font-size:13px;color:#888;">안덕면생활체육공원 500m 이내에서만 출석 가능</p>
+
+    <div class="loc-bar checking" id="locBar">
+      <span class="loc-dot"></span>
+      <span id="locText">위치 확인 중...</span>
+    </div>
+
+    <div class="member-grid" id="memberGrid"></div>
+
+    <div style="margin-top:30px;border-top:1px solid #eee;padding-top:16px;">
+      <p style="font-size:13px;color:#aaa;margin-bottom:10px;">관리자 출석 조정 (비번 필요)</p>
+      <div class="attendance-table-wrap">
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>번호</th><th>이름</th><th>출석 횟수</th><th>출석률</th><th>조정</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 자유게시판 -->
+  <div class="page" id="page-freeboard">
+    <div style="margin-top:20px;">
+      <h2>자유게시판</h2>
+      <div class="notice-form">
+        <div class="notice-author-row">
+          <input type="text" id="noticeAuthor" placeholder="작성자 이름">
+          <input type="password" id="noticePassword" placeholder="암호 4자리" maxlength="4" inputmode="numeric">
+        </div>
+        <input type="text" id="noticeTitle" placeholder="제목">
+        <textarea id="noticeContent" placeholder="내용"></textarea>
+        <button id="saveNoticeBtn">글쓰기</button>
+        <div id="noticeMsg"></div>
+      </div>
+      <div class="notice-list" id="noticeList"></div>
+    </div>
+  </div>
+
+  <!-- 기타 -->
+  <div class="page" id="page-etc">
+    <div style="margin-top:20px;">
+      <h2>러닝 기록</h2>
+      <div class="running-form">
+        <input type="text" id="runName" placeholder="이름">
+        <input type="text" id="runDistance" placeholder="거리 (예: 3.46)">
+        <input type="text" id="runPace" placeholder="페이스 (예: 5'37&quot;)">
+        <input type="text" id="runDuration" placeholder="시간 (예: 19:25)">
+        <button id="saveRunBtn">저장</button>
+        <div id="runningMsg"></div>
+      </div>
+      <table style="margin:20px auto 0;width:100%;max-width:600px;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">번호</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">이름</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">거리(km)</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">페이스</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">시간</th>
+            <th style="border:1px solid #ddd;padding:8px;background:#f2f2f2;">날짜</th>
+          </tr>
+        </thead>
+        <tbody id="runningBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL = 12;
+    const ADMIN_KEY = '1723';
+    const MASTER_KEY = '0179';
+    const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
+
+    const TARGET_LAT = 33.2889;
+    const TARGET_LNG = 126.3606;
+    const MAX_DIST = 500;
+
+    const supabaseClient = window.supabase.createClient(
+      "https://ndctjtuxpkwdldhqbnih.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY"
+    );
+
+    let locationOk = false;
+
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + id).classList.add('active');
+      if (id === 'attendance') { checkLocation(); loadAttendance(); }
+      if (id === 'etc') loadRunning();
+      if (id === 'freeboard') loadNotices();
+    }
+
+    function openNoticeModal() { document.getElementById('noticeModal').classList.add('active'); }
+    function closeNoticeModal() { document.getElementById('noticeModal').classList.remove('active'); }
+    window.onclick = function(e) {
+      if (e.target == document.getElementById('noticeModal'))
+        document.getElementById('noticeModal').classList.remove('active');
+    }
+
+    function getDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 +
+                Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function checkLocation() {
+      const bar = document.getElementById('locBar');
+      const txt = document.getElementById('locText');
+      bar.className = 'loc-bar checking';
+      txt.textContent = '위치 확인 중...';
+
+      if (!navigator.geolocation) {
+        bar.className = 'loc-bar bad';
+        txt.textContent = '이 브라우저는 위치 기능을 지원하지 않아요';
+        locationOk = false;
+        renderMemberGrid(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const dist = Math.round(getDistance(pos.coords.latitude, pos.coords.longitude, TARGET_LAT, TARGET_LNG));
+          if (dist <= MAX_DIST) {
+            bar.className = 'loc-bar ok';
+            txt.textContent = `✅ 출석 가능 구역 (${dist}m)`;
+            locationOk = true;
+          } else {
+            bar.className = 'loc-bar bad';
+            txt.textContent = `현재 위치가 너무 멀어요 (${dist}m)`;
+            locationOk = false;
+          }
+          renderMemberGrid(null);
+        },
+        () => {
+          bar.className = 'loc-bar bad';
+          txt.textContent = '위치 정보를 가져올 수 없어요. 설정에서 허용해주세요 📍';
+          locationOk = false;
+          renderMemberGrid(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    function renderMemberGrid(countMap) {
+      const grid = document.getElementById('memberGrid');
+      grid.innerHTML = '';
+      MEMBERS.forEach(name => {
+        const count = countMap ? (countMap[name] || 0) : 0;
+        const rate = Math.round((count / TOTAL) * 100);
+        const card = document.createElement('div');
+        card.className = 'member-card';
+        card.id = 'card-' + name;
+        card.innerHTML = `
+          <div class="member-check">🏃</div>
+          <div class="member-name">${name}</div>
+          <div class="member-count">${count}회 · ${rate}%</div>
+        `;
+        card.onclick = () => doAttendance(name);
+        grid.appendChild(card);
+      });
+    }
+
+    async function doAttendance(name) {
+      if (!locationOk) {
+        alert('📍 안덕면생활체육공원 500m 이내에서만 출석할 수 있어요!');
+        return;
+      }
+      const card = document.getElementById('card-' + name);
+      if (card.classList.contains('done')) {
+        alert('이미 출석 완료됐어요 ✅');
+        return;
+      }
+      if (!confirm(`${name} 출석 체크할게요?`)) return;
+
+      const { error } = await supabaseClient.from('attendance').insert([{
+        name, device_id: 'btn_' + Date.now()
+      }]);
+      if (error) { alert('저장에 실패했어요: ' + error.message); return; }
+      card.classList.add('done');
+      card.querySelector('.member-check').textContent = '✅';
+      loadAttendance();
+    }
+
+    async function loadAttendance() {
+      const { data, error } = await supabaseClient.from('attendance').select('name');
+      if (error) return;
+
+      const countMap = {};
+      MEMBERS.forEach(m => countMap[m] = 0);
+      data.forEach(r => { if (countMap[r.name] !== undefined) countMap[r.name]++; });
+
+      renderMemberGrid(countMap);
+
+      const tbody = document.getElementById('attendanceBody');
+      tbody.innerHTML = '';
+      MEMBERS.forEach((name, i) => {
+        const count = countMap[name];
+        const rate = Math.round((count / TOTAL) * 100);
+        tbody.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${name}</td>
+            <td>${count}</td>
+            <td>${rate}%</td>
+            <td>
+              <div class="count-cell">
+                <button class="count-btn" onclick="adjustAttendance('${name}', 1)">+</button>
+                <button class="count-btn" onclick="adjustAttendance('${name}', -1)">-</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function adjustAttendance(name, delta) {
+      const input = prompt('비번 4자리를 입력하세요');
+      if (input === null) return;
+      if (input !== ADMIN_KEY && input !== MASTER_KEY) { alert('비번이 틀렸어요'); return; }
+
+      if (delta === 1) {
+        const { error } = await supabaseClient.from('attendance').insert([{ name, device_id: 'manual_' + Date.now() }]);
+        if (error) { alert('저장에 실패했어요: ' + error.message); return; }
+      } else {
+        const { data, error } = await supabaseClient.from('attendance').select('id')
+          .eq('name', name).order('created_at', { ascending: false }).limit(1);
+        if (error || !data || data.length === 0) { alert('삭제할 기록이 없어요'); return; }
+        const { error: delErr } = await supabaseClient.from('attendance').delete().eq('id', data[0].id);
+        if (delErr) { alert('삭제에 실패했어요: ' + delErr.message); return; }
+      }
+      loadAttendance();
+    }
+
+    document.getElementById('saveNoticeBtn').addEventListener('click', async () => {
+      const author = document.getElementById('noticeAuthor').value.trim();
+      const password = document.getElementById('noticePassword').value.trim();
+      const title = document.getElementById('noticeTitle').value.trim();
+      const content = document.getElementById('noticeContent').value.trim();
+      const msg = document.getElementById('noticeMsg');
+      if (!author || !password || !title || !content) { alert('모두 입력해주세요'); return; }
+      if (!/^\d{4}$/.test(password)) { alert('암호는 숫자 4자리로 입력해주세요'); return; }
+      const { error } = await supabaseClient.from('notices').insert([{ author, title, content, password }]);
+      if (error) { msg.textContent = '저장에 실패했어요: ' + error.message; }
+      else {
+        msg.textContent = '✅ 등록 완료!';
+        document.getElementById('noticeAuthor').value = '';
+        document.getElementById('noticePassword').value = '';
+        document.getElementById('noticeTitle').value = '';
+        document.getElementById('noticeContent').value = '';
+        loadNotices();
+      }
+    });
+
+    async function loadNotices() {
+      const { data, error } = await supabaseClient.from('notices').select('*').order('created_at', { ascending: false });
+      if (error) return;
+      const list = document.getElementById('noticeList');
+      list.innerHTML = '';
+      if (data.length === 0) { list.innerHTML = '<p style="color:#aaa;margin-top:20px;">등록된 글이 없어요</p>'; return; }
+      data.forEach(row => {
+        const d = new Date(row.created_at);
+        list.innerHTML += `
+          <div class="notice-item">
+            <button class="delete-btn" onclick="deleteNotice(${row.id})">삭제</button>
+            <h4>${row.title}</h4>
+            <p>${row.content}</p>
+            <div class="notice-meta">${row.author} · ${d.toLocaleDateString('ko-KR')} ${d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        `;
+      });
+    }
+
+    async function deleteNotice(id) {
+      const input = prompt('암호 4자리를 입력하세요');
+      if (input === null) return;
+      if (input === MASTER_KEY) {
+        const { error } = await supabaseClient.from('notices').delete().eq('id', id);
+        if (error) { alert('삭제에 실패했어요'); } else { loadNotices(); }
+        return;
+      }
+      const { data, error } = await supabaseClient.from('notices').select('password').eq('id', id).single();
+      if (error || !data) { alert('게시글을 찾을 수 없어요'); return; }
+      if (input !== data.password) { alert('암호가 틀렸어요'); return; }
+      const { error: delError } = await supabaseClient.from('notices').delete().eq('id', id);
+      if (delError) { alert('삭제에 실패했어요'); } else { loadNotices(); }
+    }
+
+    document.getElementById('saveRunBtn').addEventListener('click', async () => {
+      const name = document.getElementById('runName').value.trim();
+      const distance = document.getElementById('runDistance').value.trim();
+      const pace = document.getElementById('runPace').value.trim();
+      const duration = document.getElementById('runDuration').value.trim();
+      if (!name || !distance || !pace || !duration) { alert('모두 입력해주세요'); return; }
+      const { error } = await supabaseClient.from('running').insert([{
+        name, distance: parseFloat(distance), pace, duration
+      }]);
+      const msg = document.getElementById('runningMsg');
+      if (error) { msg.textContent = '저장에 실패했어요: ' + error.message; }
+      else {
+        msg.textContent = '✅ 저장 완료!';
+        document.getElementById('runName').value = '';
+        document.getElementById('runDistance').value = '';
+        document.getElementById('runPace').value = '';
+        document.getElementById('runDuration').value = '';
+        loadRunning();
+      }
+    });
+
+    async function loadRunning() {
+      const { data, error } = await supabaseClient.from('running').select('*').order('created_at', { ascending: false });
+      if (error) return;
+      const tbody = document.getElementById('runningBody');
+      tbody.innerHTML = '';
+      data.forEach((row, i) => {
+        const d = new Date(row.created_at);
+        tbody.innerHTML += `<tr>
+          <td style="border:1px solid #ddd;padding:8px;">${i+1}</td>
+          <td style="border:1px solid #ddd;padding:8px;">${row.name}</td>
+          <td style="border:1px solid #ddd;padding:8px;">${row.distance}</td>
+          <td style="border:1px solid #ddd;padding:8px;">${row.pace}</td>
+          <td style="border:1px solid #ddd;padding:8px;">${row.duration}</td>
+          <td style="border:1px solid #ddd;padding:8px;">${d.toLocaleDateString('ko-KR')}</td>
+        </tr>`;
+      });
+    }
+  </script>
+
+</body>
+</html>
