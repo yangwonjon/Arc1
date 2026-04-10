@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARC2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', Arial, sans-serif; text-align: center; background-color: #f8f9fa; color: #333; }
+    .navbar { background-color: #333; display: flex; justify-content: center; position: sticky; top: 0; z-index: 100; }
+    .navbar a { color: white; padding: 14px 0; flex: 1; text-decoration: none; font-size: 14px; cursor: pointer; border-right: 1px solid #444; }
+    .navbar a:last-child { border-right: none; }
+    .page { display: none; padding: 20px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .page.active { display: block; }
+    .home-content { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .home-logo img { width: 280px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .weather-info { width: 100%; max-width: 450px; background: white; border-radius: 16px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .weather-grid { display: flex; justify-content: space-between; gap: 5px; margin-top: 8px; }
+    .weather-item { flex: 1; padding: 8px 4px; border-radius: 10px; background: #fafafa; border: 1px solid #f0f0f0; min-width: 0; }
+    .weather-item .label { font-size: 10px; color: #999; margin-bottom: 4px; white-space: nowrap; }
+    .weather-item .val { font-size: 13px; font-weight: bold; white-space: nowrap; }
+    .status-txt { font-size: 13px; font-weight: 800; display: block; margin-top: 2px; }
+    .ranking-container { width: 100%; max-width: 400px; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .ranking-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #eee; }
+    .rank-num { font-weight: 800; width: 24px; color: #999; }
+    .rank-1 .rank-num { color: #f1c40f; font-size: 20px; }
+    .rank-name { font-weight: bold; }
+    .rank-val span { color: #27ae60; font-weight: bold; }
+    .loc-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 15px auto; padding: 12px; border-radius: 30px; font-size: 13px; font-weight: bold; max-width: 360px; background: #f0f0f0; color: #888; }
+    .loc-bar.ok { background: #e6f9ee; color: #27ae60; border: 1px solid #27ae60; }
+    .loc-bar.bad { background: #fdecea; color: #e74c3c; border: 1px solid #e74c3c; }
+    .loc-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+    .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 500px; margin: 15px auto; }
+    .member-card { border: 2px solid #ddd; border-radius: 14px; padding: 20px 10px; background: white; cursor: pointer; transition: 0.2s; }
+    .attendance-table { width: 100%; max-width: 600px; margin: 0 auto; border-collapse: collapse; background: white; }
+    .attendance-table td { border: 1px solid #eee; padding: 10px; font-size: 13px; }
+    .adj-btn { width: 32px; height: 32px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    
+    .notice-item { background: white; padding: 18px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; text-align: left; position: relative; max-width: 500px; margin-inline: auto; cursor: pointer; }
+    .notice-img { width: 100%; border-radius: 8px; margin-top: 10px; display: block; object-fit: cover; max-height: 300px; }
+    .delete-btn { position: absolute; top: 15px; right: 15px; background: #ffeded; color: #e74c3c; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; z-index: 10; }
+    .btn-main { padding: 12px 24px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; max-width: 400px; }
+    
+    /* 기상청 버튼 스타일 */
+    .kma-btn { display: block; background: #e3f2fd; color: #1976d2; text-decoration: none; padding: 12px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1px solid #bbdefb; margin-top: 10px; }
+
+    .post-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .post-modal.active { display: flex; }
+    .post-modal-content { background: white; width: 95%; max-width: 500px; height: 90vh; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-main { padding: 20px; flex: 1; overflow-y: auto; text-align: left; }
+    .cmt-box { background: #f9f9f9; padding: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; min-height: 300px; }
+    #commentList { flex: 1; overflow-y: auto; margin-top: 10px; }
+    .cmt-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .cmt-del { color: #e74c3c; font-size: 11px; cursor: pointer; margin-left: 8px; }
+    .cmt-input-row { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+    .cmt-input-top { display: flex; gap: 5px; }
+    .cmt-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+    .cmt-pw { width: 60px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; text-align: center; }
+    .like-area { display: flex; gap: 15px; margin-top: 15px; font-weight: bold; }
+    .like-btn { cursor: pointer; transition: 0.1s; display: flex; align-items: center; gap: 4px; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; }
+        /* 달력(일정표) 스타일 */
+    .calendar-container { max-width: 400px; margin: 0 auto; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 15px; }
+    .calendar-label { font-size: 11px; color: #999; font-weight: bold; padding-bottom: 5px; }
+    .calendar-day { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 14px; border-radius: 8px; }
+    .calendar-day.today { background: #ffeded; color: #e74c3c; font-weight: bold; border: 1px solid #e74c3c; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <a onclick="showPage('home')">홈</a>
+    <a onclick="showPage('attendance')">출석 체크</a>
+    <a onclick="showPage('freeboard')">자유게시판</a>
+    <a onclick="showPage('calendar')">일정표</a>
+    <a onclick="showPage('etc')">런닝기록</a></a>
+  </div>
+
+  <div class="page active" id="page-home">
+    <div class="home-content">
+      <div class="home-logo"><img src="logo.png"></div>
+      <div class="weather-info">
+        <div style="font-size: 11px; font-weight: bold; color: #555;">📍 안덕면 실시간 날씨 (20시 기준)</div>
+        <div class="weather-grid">
+          <div class="weather-item"><div class="label">현재 기온</div><div class="val"><span id="currTemp">--</span>°</div></div>
+          <div class="weather-item"><div class="label">20시/체감</div><div class="val"><span id="tonightTemp">--</span>°/<span id="tonightFeel">--</span>°</div></div>
+          <div class="weather-item"><div class="label">비/확률</div><div class="val" style="color: #3498db;"><span id="rainForecast">0</span>m/<span id="rainPop">0</span>%</div></div>
+          <div class="weather-item"><div class="label">미세먼지</div><div id="dustStatus" class="status-txt" style="color: #999;">확인중</div></div>
+        </div>
+        <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do?stnId=184&address=%EC%A0%9C%EC%A3%BC%ED%8A%B9%EB%B3%84%EC%9E%90%EC%B9%98%EB%8F%84%20%EC%84%9C%EA%B7%80%ED%8F%AC%EC%8B%9C%20%EC%95%88%EB%8D%95%EB%A9%B4" target="_blank" class="kma-btn">기상청 안덕면 정밀예보 확인</a>
+      </div>
+      <div class="ranking-container">
+        <div class="ranking-title">🏆 실시간 출석 랭킹</div>
+        <div id="homeRankingList"></div>
+      </div>
+      <button class="btn-main" style="background:#555;" onclick="openNoticeModal()">공지사항</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-attendance">
+    <h2>출석 체크</h2>
+    <div class="loc-bar checking" id="locBar"><span class="loc-dot"></span><span id="locText">위치 확인 중...</span></div>
+    <div class="member-grid" id="memberGrid"></div>
+    <div style="margin-top:40px;">
+      <p style="font-size: 12px; color: #999; margin-bottom: 10px;">관리자 데이터 조정 (+/-)</p>
+      <table class="attendance-table"><tbody id="attendanceBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="page" id="page-freeboard">
+    <h2>자유게시판</h2>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:30px;">
+      <div style="display:flex; gap:5px; width:100%; max-width:400px;">
+        <input type="text" id="noticeAuthor" placeholder="작성자" style="flex:3; padding:12px; border:1px solid #ddd; border-radius:8px;">
+        <input type="password" id="noticePassword" placeholder="비번" maxlength="4" style="width:60px; padding:12px; border:1px solid #ddd; border-radius:8px;" inputmode="numeric">
+      </div>
+      <input type="text" id="noticeTitle" placeholder="제목" style="width:100%; max-width:400px; padding:12px; border:1px solid #ddd; border-radius:8px;">
+      <textarea id="noticeContent" placeholder="내용을 입력하세요" rows="4" style="width:100%; max-width:400px; padding:12px; border:1px solid #ddd; border-radius:8px;"></textarea>
+      <label class="file-label" for="noticeFile" style="display: block; width: 100%; max-width: 400px; padding: 12px; background: #f0f0f0; border: 1px dashed #bbb; border-radius: 8px; font-size: 13px; cursor: pointer; color: #666; margin-bottom: 5px; text-align: center;">📸 사진 첨부 (선택)</label>
+      <input type="file" id="noticeFile" accept="image/*" style="display:none;" onchange="updateFileName(this)">
+      <div id="fileNameDisplay" style="font-size:11px; color:#27ae60; margin-bottom:5px;"></div>
+      <button id="writeBtn" class="btn-main" onclick="saveNotice()">글쓰기</button>
+    </div>
+    <div id="noticeList"></div>
+  </div>
+  <div class="page" id="page-calendar">
+    <h2>활동 일정표</h2>
+    <div class="calendar-container">
+      <h3 id="calendarMonth">2026년 4월</h3>
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div style="margin-top:20px; text-align:left; font-size:13px; color:#666; border-top:1px solid #eee; padding-top:10px;">
+        🏃‍♂️ <b>정기 모임:</b> 매주 수, 금, 토 (20:00)
+      </div>
+    </div>
+  </div>
+<div class="page" id="page-etc">
+  <h2>러닝 기록 (AI 정밀 스캔)</h2>
+  
+  <div style="display:flex; flex-direction:column; align-items:center; gap:10px; background:white; padding:20px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+    <p style="font-size:12px; color:#666;">나이키/가민 흰색 배경 스크린샷 권장</p>
+    <label for="runImg" style="display:block; width:100%; padding:15px; background:#f8f9fa; border:2px dashed #333; border-radius:10px; cursor:pointer; font-weight:bold;">
+      📸 러닝 인증샷 선택
+    </label>
+    <input type="file" id="runImg" accept="image/*" style="display:none;" onchange="scanRunImage(this)">
+    <div id="scanStatus" style="font-size:13px; color:#1976d2; font-weight:bold; display:none; margin:5px 0;">분석 대기 중...</div>
+
+    <select id="runName" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; background-color: white;">
+        <option value="">이름을 선택하세요</option>
+        <option value="고영지">고영지</option>
+        <option value="윤민혁">윤민혁</option>
+        <option value="양원준">양원준</option>
+        <option value="김민수">김민수</option>
+        <option value="지항민">지항민</option>
+        <option value="송지용">송지용</option>
+        <option value="김해건">김해건</option>
+    </select>
+    
+    <div style="width:100%; display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+      <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#888; margin-bottom:2px; padding-left:5px;">거리(km)</label>
+        <input type="text" id="runDist" placeholder="0.00" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; text-align:center;">
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#888; margin-bottom:2px; padding-left:5px;">페이스</label>
+        <input type="text" id="runPace" placeholder="0'00"" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; text-align:center;">
+      </div>
+    </div>
+
+    <div style="width:100%; display:flex; flex-direction:column; margin-top:10px;">
+      <label style="font-size:10px; color:#888; margin-bottom:2px; padding-left:5px;">총 운동 시간</label>
+      <input type="text" id="runTime" placeholder="00:00:00" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; text-align:center;">
+    </div>
+
+    <button class="btn-main" onclick="saveRun()" style="margin-top:10px; background:#27ae60;">기록 저장하기</button>
+  </div>
+  
+  <table class="attendance-table" style="margin-top:20px;">
+    <thead>
+      <tr style="background:#eee; font-size:12px;">
+        <th style="padding:10px;">날짜</th>
+        <th>이름</th>
+        <th>거리</th>
+        <th>시간</th>
+        <th>페이스</th>
+        <th style="width:90px;">인증/관리</th>
+      </tr>
+    </thead>
+    <tbody id="runBody"></tbody>
+  </table>
+</div>
+  <div class="post-modal" id="postDetailModal" onclick="closePostModal()">
+    <div class="post-modal-content" onclick="event.stopPropagation()">
+      <div class="modal-main" id="modalDetailContent"></div>
+      <div class="cmt-box">
+        <div id="modalLikeArea" class="like-area" style="padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;"></div>
+        <div style="font-weight:bold; font-size:14px;">댓글</div>
+        <div id="commentList"></div>
+        <div class="cmt-input-row">
+          <div class="cmt-input-top">
+            <input type="text" id="cmtInput" class="cmt-input" placeholder="댓글 내용을 입력하세요">
+            <input type="password" id="cmtPw" class="cmt-pw" placeholder="비번" maxlength="4" inputmode="numeric">
+          </div>
+          <button onclick="addComment()" style="padding:10px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold;">등록</button>
+        </div>
+      </div>
+      <button onclick="closePostModal()" style="padding:15px; border:none; background:#eee; font-weight:bold; cursor:pointer;">닫기</button>
+    </div>
+  </div>
+
+  <div class="modal" id="noticeModal">
+    <div class="modal-content">
+      <h3>ARC 공지</h3>
+      <div style="text-align:left; font-size:14px; line-height:1.8; margin-top:15px;">
+        1. 회비 월 2만원 (카뱅 3333-16-7331916)<br>
+        2. 정기모임 수, 금, 토 20:00<br>
+        3. 당일 19시까지 카톡 보고 필수!
+      </div>
+      <button class="btn-main" style="margin-top:20px;" onclick="closeNoticeModal()">닫기</button>
+    </div>
+  </div>
+
+  <script>
+  // [1번 엔진] 이미지를 초압축하는 함수
+async function compressImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 600; // 가로 600px로 축소
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // 화질 0.5 (50%)로 초압축해서 용량을 100KB 미만으로 만듬
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/jpeg', 0.5); 
+            };
+        };
+    });
+}
+    const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
+    const TOTAL = 12, ADMIN_KEY = '1723', MASTER_KEY = '0179';
+    // 기존 좌표를 아래 좌표로 수정하세요
+const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
+    const supabaseClient = window.supabase.createClient("https://ndctjtuxpkwdldhqbnih.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY");
+
+    let locationOk = false, allNotices = [], currentPostId = null;
+    let counts = { like: {}, dislike: {} };
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    async function updateWeather() {
+      const apiKey = "c1aa66c2cae50680cddc975fbf80a45a";
+      try {
+        const currRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${TARGET.lat}&lon=${TARGET.lng}&appid=${apiKey}&units=metric`);
+        if(currRes.ok) { const currData = await currRes.json(); document.getElementById('currTemp').innerText = Math.round(currData.main.temp); }
+        const foreRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${TARGET.lat}&lon=${TARGET.lng}&appid=${apiKey}&units=metric`);
+        if(foreRes.ok) {
+          const foreData = await foreRes.json();
+          const tonight = foreData.list.find(item => item.dt_txt.includes("12:00:00")) || foreData.list[0];
+          const rawPop = tonight.pop || 0;
+          const adjustedPop = Math.min(100, Math.round(rawPop * 120 + (rawPop > 0.05 ? 10 : 0)));
+          document.getElementById('tonightTemp').innerText = Math.round(tonight.main.temp);
+          document.getElementById('tonightFeel').innerText = Math.round(tonight.main.feels_like);
+          document.getElementById('rainForecast').innerText = tonight.rain ? (tonight.rain['3h'] || 0) : 0;
+          document.getElementById('rainPop').innerText = adjustedPop;
+        }
+      } catch (e) {}
+    }
+
+async function loadNotices() {
+  const { data: notices } = await supabaseClient
+    .from('notices')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  const { data: allComments } = await supabaseClient.from('comments').select('post_id');
+  const commentCounts = {};
+  allComments?.forEach(c => {
+    commentCounts[c.post_id] = (commentCounts[c.post_id] || 0) + 1;
+  });
+
+  allNotices = notices;
+  
+  document.getElementById('noticeList').innerHTML = notices.map((n, i) => {
+    const cmtCount = commentCounts[n.id] || 0;
+
+    return `
+      <div class="notice-item" onclick="openPostModal(${i})">
+        <button class="delete-btn" onclick="event.stopPropagation(); deleteNotice(${n.id})">삭제</button>
+        <h4 style="margin-bottom:5px;">${n.title}</h4>
+        <div style="font-size:11px; color:#bbb; margin-bottom:8px;">${n.author} / ${formatDate(n.created_at)}</div>
+        ${n.image_url ? `<img src="${n.image_url}" class="notice-img">` : ''}
+        <p style="margin-top:10px; color:#666; font-size:13px;">${n.content.substring(0, 30)}...</p>
+        
+        <div class="like-area" style="font-size:12px; color:#888; margin-top:12px; display:flex; gap:15px;">
+          <span>👍 <span id="list-like-${n.id}">${n.likes_count || 0}</span></span>
+          <span>👎 <span id="list-dislike-${n.id}">${n.dislikes_count || 0}</span></span>
+          <span>💬 댓글 <span style="color:#333; font-weight:bold;">${cmtCount}</span></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+    async function openPostModal(idx) {
+  const n = allNotices[idx];
+  currentPostId = n.id;
+
+  // 서버에서 가져온 좋아요/싫어요 숫자를 변수에 담습니다
+  const likeCount = n.likes_count || 0;
+  const dislikeCount = n.dislikes_count || 0;
+
+  document.getElementById('modalDetailContent').innerHTML = `
+    <div style="font-size:12px; color:#888;">${n.author} | ${new Date(n.created_at).toLocaleString()}</div>
+    <h3 style="margin: 15px 0;">${n.title}</h3>
+    <div style="line-height:1.6; white-space:pre-wrap;">${n.content}</div>
+    ${n.image_url ? `<img src="${n.image_url}" style="width:100%; border-radius:10px; margin-top:15px;">` : ''}
+  `;
+
+  document.getElementById('modalLikeArea').innerHTML = `
+    <div class="like-btn" onclick="handleReaction(${n.id}, 'like')" style="color:#c62917;">
+      👍 <span id="modal-like-${n.id}">${likeCount}</span>
+    </div>
+    <div class="like-btn" onclick="handleReaction(${n.id}, 'dislike')" style="color:#1976d2;">
+      👎 <span id="modal-dislike-${n.id}">${dislikeCount}</span>
+    </div>
+  `;
+
+  await loadComments(n.id);
+  document.getElementById('postDetailModal').classList.add('active');
+}
+
+    async function loadComments(postId) {
+      const { data } = await supabaseClient.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+      const listEl = document.getElementById('commentList');
+      if (!data || data.length === 0) listEl.innerHTML = '<div style="color:#999; font-size:12px; padding:10px 0;">등록된 댓글이 없습니다.</div>';
+      else listEl.innerHTML = data.map(c => `<div class="cmt-item"><span><b>익명:</b> ${c.content}</span><span class="cmt-del" onclick="deleteComment(${c.id}, '${c.password}')">삭제</span></div>`).join('');
+    }
+
+    async function addComment() {
+      const content = document.getElementById('cmtInput').value, password = document.getElementById('cmtPw').value;
+      if(!content || !password) return alert('내용과 비번을 입력하세요!');
+      const { error } = await supabaseClient.from('comments').insert([{ post_id: currentPostId, content, password }]);
+      if (error) alert('등록 실패');
+      else { document.getElementById('cmtInput').value = ''; document.getElementById('cmtPw').value = ''; loadComments(currentPostId); }
+    }
+
+    async function deleteComment(cmtId, correctPw) {
+      const inputPw = prompt('댓글 비밀번호 입력');
+      if (inputPw === correctPw || inputPw === MASTER_KEY) {
+        await supabaseClient.from('comments').delete().eq('id', cmtId);
+        loadComments(currentPostId);
+      } else alert('비밀번호가 틀렸습니다.');
+    }
+
+    async function handleReaction(id, type) {
+  const storageKey = `reacted_${type}_${id}`;
+  const alreadyPressed = localStorage.getItem(storageKey);
+  
+  try {
+    // 1. 서버에서 현재 숫자 가져오기
+    const { data: post } = await supabaseClient
+      .from('notices')
+      .select('likes_count, dislikes_count')
+      .eq('id', id)
+      .single();
+
+    const column = type === 'like' ? 'likes_count' : 'dislikes_count';
+    let newVal;
+
+    if (alreadyPressed) {
+      // [취소 로직] 이미 눌렀던 거면 -1 (단, 0보다 작아지지는 않게)
+      newVal = Math.max(0, (post[column] || 0) - 1);
+      localStorage.removeItem(storageKey); // 내 폰에서 기록 삭제
+    } else {
+      // [추가 로직] 처음 누르는 거면 +1
+      newVal = (post[column] || 0) + 1;
+      localStorage.setItem(storageKey, 'true'); // 내 폰에 기록 저장
+    }
+
+    // 2. 서버 데이터 업데이트
+    const { error } = await supabaseClient
+      .from('notices')
+      .update({ [column]: newVal })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    // 3. 화면 숫자 즉시 업데이트 (상세창 & 목록창 둘 다)
+    const modalEl = document.getElementById(`modal-${type}-${id}`);
+    if (modalEl) modalEl.innerText = newVal;
+
+    const listEl = document.getElementById(`list-${type}-${id}`);
+    if (listEl) listEl.innerText = newVal;
+
+  } catch (err) {
+    console.error("반응 처리 실패:", err);
+  }
+}
+
+
+
+
+    function closePostModal() { document.getElementById('postDetailModal').classList.remove('active'); currentPostId = null; }
+
+    async function doAttend(name) {
+      if (!locationOk) return alert("500m 이내만 출석 가능합니다.");
+      if (!confirm(`${name}님, 출석 체크하시겠습니까?`)) return;
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existing } = await supabaseClient.from('attendance').select('id').eq('name', name).gte('created_at', today);
+      if (existing?.length > 0) return alert("이미 오늘 출석하셨습니다.");
+      await supabaseClient.from('attendance').insert([{ name, device_id: navigator.userAgent }]);
+      alert(`${name}님 출석 완료!`); loadAttendance(); loadHomeRanking();
+    }
+
+    async function loadAttendance() {
+      const { data } = await supabaseClient.from('attendance').select('name');
+      const countsAtt = {}; MEMBERS.forEach(m => countsAtt[m] = 0);
+      data?.forEach(r => { if(countsAtt[r.name] !== undefined) countsAtt[r.name]++; });
+      document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => `<div class="member-card" onclick="doAttend('${m}')"><b>${m}</b><br><small style="color:#999">${countsAtt[m]}회</small></div>`).join('');
+      document.getElementById('attendanceBody').innerHTML = MEMBERS.map(m => `<tr><td>${m}</td><td>${countsAtt[m]}회</td><td>${Math.round(countsAtt[m]/TOTAL*100)}%</td><td><button class="adj-btn" onclick="adjustAttendance('${m}', 1)">+</button> <button class="adj-btn" onclick="adjustAttendance('${m}', -1)">-</button></td></tr>`).join('');
+    }
+
+    function checkLocation() {
+      const bar = document.getElementById('locBar'), txt = document.getElementById('locText');
+      navigator.geolocation.getCurrentPosition(p => {
+        const d = Math.round(getDist(p.coords.latitude, p.coords.longitude, TARGET.lat, TARGET.lng));
+        locationOk = (d <= 500); bar.className = locationOk ? 'loc-bar ok' : 'loc-bar bad';
+        txt.textContent = locationOk ? `✅ 출석 가능 (${d}m)` : `너무 멀어요 (${d}m)`;
+      }, () => { locationOk = false; bar.className = 'loc-bar bad'; txt.textContent = 'GPS 권한 필요'; }, { enableHighAccuracy: true });
+    }
+
+    function getDist(l1, g1, l2, g2) {
+      const R = 6371000, dL = (l2-l1)*Math.PI/180, dG = (g2-g1)*Math.PI/180;
+      const a = Math.sin(dL/2)**2 + Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dG/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    async function saveNotice() {
+      const author = document.getElementById('noticeAuthor').value, title = document.getElementById('noticeTitle').value, content = document.getElementById('noticeContent').value, password = document.getElementById('noticePassword').value, fileInput = document.getElementById('noticeFile');
+      if(!author || !title || !content || !password) return alert('입력 확인!');
+      const btn = document.getElementById('writeBtn'); btn.disabled = true; btn.innerText = "업로드 중...";
+      let imageUrl = null;
+      if (fileInput.files.length > 0) {
+        const fileName = `${Date.now()}.jpg`;
+        await supabaseClient.storage.from('notices').upload(fileName, fileInput.files[0]);
+        imageUrl = supabaseClient.storage.from('notices').getPublicUrl(fileName).data.publicUrl;
+      }
+      await supabaseClient.from('notices').insert([{ author, title, content, password, image_url: imageUrl }]);
+      location.reload();
+    }
+
+        function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  
+  if(id === 'home') { updateWeather(); loadHomeRanking(); }
+  if(id === 'attendance') { checkLocation(); loadAttendance(); }
+  if(id === 'freeboard') loadNotices();
+  if(id === 'calendar') renderCalendar();
+}
+
+
+
+    async function loadHomeRanking() {
+      const { data } = await supabaseClient.from('attendance').select('name');
+      const countsRanking = {}; MEMBERS.forEach(m => countsRanking[m] = 0);
+      data?.forEach(r => { if(countsRanking[r.name] !== undefined) countsRanking[r.name]++; });
+      const sorted = MEMBERS.map(n => ({ name: n, count: countsRanking[n], rate: Math.round(countsRanking[n]/TOTAL*100) })).sort((a,b) => b.count - a.count);
+      document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => `<div class="ranking-item ${i < 3 ? 'rank-'+(i+1) : ''}"><span class="rank-num">${i+1}</span><span class="rank-name">${m.name}</span><span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span></div>`).join('');
+    }
+
+    async function adjustAttendance(name, delta) {
+      const pw = prompt('관리자 비번'); if(pw !== ADMIN_KEY && pw !== MASTER_KEY) return alert('비번 틀림');
+      if (delta === 1) await supabaseClient.from('attendance').insert([{ name, device_id: 'manual' }]);
+      else { const { data } = await supabaseClient.from('attendance').select('id').eq('name', name).order('created_at', { ascending: false }).limit(1); if (data?.length > 0) await supabaseClient.from('attendance').delete().eq('id', data[0].id); }
+      loadAttendance();
+    }
+
+    function updateFileName(i) { if(i.files.length > 0) document.getElementById('fileNameDisplay').innerText = "✅ 사진 선택됨: " + i.files[0].name; }
+    function openNoticeModal() { document.getElementById('noticeModal').classList.add('active'); }
+    function closeNoticeModal() { document.getElementById('noticeModal').classList.remove('active'); }
+    async function deleteNotice(id) {
+      const pw = prompt('비번');
+      const { data } = await supabaseClient.from('notices').select('password').eq('id', id).single();
+      if(pw === MASTER_KEY || data?.password === pw) { await supabaseClient.from('notices').delete().eq('id', id); loadNotices(); }
+      else alert('틀림');
+    }
+
+    updateWeather(); loadHomeRanking();
+        function renderCalendar() {
+      const now = new Date(); 
+      const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+      document.getElementById('calendarMonth').innerText = `${y}년 ${m + 1}월`;
+      const grid = document.getElementById('calendarGrid');
+      const labels = ['일','월','화','수','목','금','토'];
+      
+      grid.innerHTML = labels.map(l => `<div class="calendar-label">${l}</div>`).join('');
+      
+      const firstDay = new Date(y, m, 1).getDay(); 
+      const lastDate = new Date(y, m + 1, 0).getDate();
+      
+      for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+      for(let i=1; i<=lastDate; i++) {
+        const isToday = (i === d) ? 'today' : '';
+        grid.innerHTML += `<div class="calendar-day ${isToday}">${i}</div>`;
+      }
+    }
+async function scanRunImage(input) {
+  const nameInp = document.getElementById('runName');
+  if (!nameInp.value) {
+    alert("⚠️ 작성자 이름을 먼저 선택해 주세요!");
+    input.value = "";
+    return;
+  }
+
+  if (!input.files || !input.files[0]) return;
+
+  const statusEl = document.getElementById('scanStatus');
+  const distInp = document.getElementById('runDist');
+  const paceInp = document.getElementById('runPace');
+  const timeInp = document.getElementById('runTime');
+
+  distInp.value = ''; paceInp.value = ''; timeInp.value = '';
+  statusEl.style.display = 'block';
+  statusEl.innerText = "🤖 새로운 키로 분석 중...";
+  statusEl.style.color = "#1976d2";
+
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(input.files[0]);
+    });
+
+    // 새로 주신 키값 적용
+    // 기존 url을 지우고 이 라인으로 교체하세요
+const GEMINI_API_KEY = "AIzaSyCqEq3YuYkhpEnSKOqDr9oIryAcKpQJjWA";
+const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: "Extract running data (distance in km, pace as 0'00\", time as 00:00:00) from this image. Return ONLY a JSON object: {\"dist\": \"\", \"pace\": \"\", \"time\": \"\"}" },
+            { inline_data: { mime_type: input.files[0].type || 'image/jpeg', data: base64 } }
+          ]
+        }],
+        generationConfig: { 
+          temperature: 0.1,
+          response_mime_type: "application/json" 
+        }
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    if (result.candidates && result.candidates[0].content.parts[0].text) {
+      const aiText = result.candidates[0].content.parts[0].text;
+      const data = JSON.parse(aiText);
+      
+      distInp.value = data.dist || '';
+      paceInp.value = data.pace || '';
+      timeInp.value = data.time || '';
+      
+      statusEl.innerText = "✅ 분석 성공!";
+      statusEl.style.color = "#27ae60";
+    }
+  } catch (err) {
+    console.error("오류 상세:", err);
+    alert(`❌ 스캔 실패\n이유: ${err.message}`);
+    statusEl.innerText = "❌ 분석 실패 (잠시 후 다시 시도)";
+    statusEl.style.color = "#e74c3c";
+  }
+}
+
+async function saveRun() {
+  const name = document.getElementById('runName').value;
+  const dist = document.getElementById('runDist').value;
+  const pace = document.getElementById('runPace').value;
+  const time = document.getElementById('runTime').value;
+  const fileInput = document.getElementById('runImg'); // 사진 입력창
+
+  if (!name || !dist) {
+    alert("이름과 거리는 필수입니다!"); return;
+  }
+
+  try {
+    let imageUrl = null;
+
+    // 1. 사진이 있으면 먼저 초압축해서 서버 창고(Storage)에 올림
+    if (fileInput.files.length > 0) {
+      document.getElementById('scanStatus').innerText = "⚡ 사진 초압축 및 서버 전송 중...";
+      document.getElementById('scanStatus').style.display = 'block';
+
+      const compressedBlob = await compressImage(fileInput.files[0]);
+const fileName = `${Date.now()}.jpg`; // 한글 이름 빼고 깔끔하게 숫자(시간)만 넣기
+      const { data, error: uploadError } = await supabaseClient.storage
+        .from('runs')
+        .upload(fileName, compressedBlob);
+
+      if (uploadError) throw uploadError;
+      
+      // 사진이 저장된 공용 주소(URL) 가져오기
+      imageUrl = supabaseClient.storage.from('runs').getPublicUrl(fileName).data.publicUrl;
+    }
+
+    // 2. 데이터베이스에 기록 저장 (사진 주소 포함)
+    const { error } = await supabaseClient
+      .from('runs')
+      .insert([{ name, dist, pace, time, image_url: imageUrl }]);
+
+    if (error) throw error;
+
+    await loadRuns(); // 목록 새로고침
+    alert(`기록 저장 완료!`);
+
+    // 3. 입력창 싹 비우기
+    fileInput.value = "";
+    document.getElementById('runDist').value = "";
+    document.getElementById('runPace').value = "";
+    document.getElementById('runTime').value = "";
+    document.getElementById('scanStatus').style.display = 'none';
+
+  } catch (err) {
+    console.error(err);
+    alert("저장 실패: " + err.message);
+  }
+}
+
+async function loadRuns() {
+  const { data, error } = await supabaseClient
+    .from('runs').select('*').order('created_at', { ascending: false });
+
+  if (error) return;
+
+  const tbody = document.getElementById('runBody');
+  if (data) {
+    tbody.innerHTML = data.map(r => {
+      const d = new Date(r.created_at);
+      const dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+      
+      // 사진 보기 버튼
+      const photoBtn = r.image_url 
+        ? `<button onclick="window.open('${r.image_url}')" style="padding:4px 8px; font-size:10px; background:#555; color:white; border:none; border-radius:4px; cursor:pointer;">보기</button>` 
+        : `<span style="color:#ccc; font-size:10px;">없음</span>`;
+
+      // 삭제 버튼
+      const delBtn = `<button onclick="deleteRun(${r.id})" style="padding:4px 6px; font-size:10px; background:#fdecea; color:#e74c3c; border:1px solid #f5c6cb; border-radius:4px; cursor:pointer; margin-left:5px;">X</button>`;
+
+      return `
+        <tr>
+          <td style="padding:10px; border-bottom:1px solid #eee; font-size:13px; color:#000; font-weight:bold;">${dateStr}</td>
+          <td style="border-bottom:1px solid #eee; font-size:13px;"><b>${r.name}</b></td>
+          <td style="border-bottom:1px solid #eee; font-size:13px;">${r.dist}km</td>
+          <td style="border-bottom:1px solid #eee; font-size:13px;">${r.time || '--'}</td> <td style="border-bottom:1px solid #eee; font-size:13px;">${r.pace}</td>
+          <td style="border-bottom:1px solid #eee; white-space:nowrap;">${photoBtn}${delBtn}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+}
+
+async function deleteRun(runId) {
+  // 1. 비밀번호 확인
+  const pw = prompt('기록을 삭제하려면 마스터키를 입력하세요.');
+  if (pw !== '0179') {
+    alert('비밀번호가 틀렸습니다.');
+    return;
+  }
+
+  // 2. 진짜 삭제할지 한 번 더 확인
+  if (!confirm('해당 기록을 영구 삭제하시겠습니까?')) return;
+
+  try {
+    // 3. Supabase 삭제 실행
+    const { error } = await supabaseClient
+      .from('runs')
+      .delete()
+      .eq('id', runId); // 전달받은 고유 ID로 매칭
+
+    if (error) throw error;
+
+    // 4. 삭제 성공 후 즉시 목록 새로고침
+    alert('삭제되었습니다.');
+    await loadRuns(); 
+    
+  } catch (err) {
+    console.error("삭제 중 오류:", err);
+    alert('삭제 실패: ' + err.message);
+  }
+}
+async function deleteRun(id) {
+  const pw = prompt('기록을 삭제하려면 마스터키를 입력하세요.');
+  
+  // 마스터키 0179 확인
+  if (pw !== '0179') {
+    alert('비밀번호가 틀렸습니다.');
+    return;
+  }
+
+  if (!confirm('이 기록을 정말 삭제하시겠습니까?')) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('runs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    alert('삭제되었습니다.');
+    loadRuns(); // 목록 새로고침
+  } catch (err) {
+    alert('삭제 실패: ' + err.message);
+  }
+}
+
+ </script>
+</body>
+</html>
