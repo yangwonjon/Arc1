@@ -432,6 +432,31 @@ function openNoticeModal() {
     }
 
     async function deleteRun(id) { if(prompt("마스터키")===MASTER_KEY) { await supabaseClient.from('runs').delete().eq('id',id); loadRuns(); } }
+        // 이름을 클릭했을 때 실행되는 출석 함수
+    async function doAttend(name) {
+      if (!locationOk) {
+        alert("위치 인증이 되지 않았습니다. 안덕면 모임 장소 근처에서 시도해주세요.");
+        return;
+      }
+
+      if (confirm(`${name}님, 오늘 출석을 체크하시겠습니까?`)) {
+        try {
+          const { error } = await supabaseClient
+            .from('attendance')
+            .insert([{ name: name }]);
+
+          if (error) throw error;
+
+          alert(`${name}님, 출석 체크 완료!`);
+          loadAttendance(); // 테이블 및 갯수 새로고침
+          loadHomeRanking(); // 홈 화면 랭킹 새로고침
+        } catch (e) {
+          console.error(e);
+          alert("출석 저장 중 오류가 발생했습니다.");
+        }
+      }
+    }
+
   </script>
 </body>
 </html>
