@@ -141,11 +141,16 @@
       <label for="runImg" style="display:block; width:100%; padding:15px; background:#f8f9fa; border:2px dashed #333; border-radius:10px; cursor:pointer; font-weight:bold;">📸 러닝 인증샷 선택</label>
       <input type="file" id="runImg" accept="image/*" style="display:none;" onchange="scanImageLocal(this)">
       <div id="scanStatus" style="font-size:13px; color:#1976d2; font-weight:bold; display:none;">분석 대기 중...</div>
-      <select id="runName" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
-          <option value="">이름 선택</option>
-          <option value="고영지">고영지</option><option value="윤민혁">윤민혁</option><option value="양원준">양원준</option>
-          <option value="김민수">김민수</option><option value="지항민">지항민</option><option value="송지용">송지용</option><option value="김해건">김해건</option>
-      </select>
+<select id="runName" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
+    <option value="" disabled selected>이름 선택</option>
+    <option value="고영지">고영지</option>
+    <option value="윤민혁">윤민혁</option>
+    <option value="양원준">양원준</option>
+    <option value="김민수">김민수</option>
+    <option value="지항민">지항민</option>
+    <option value="송지용">송지용</option>
+    <option value="김해건">김해건</option>
+</select>
 <div style="width:100%; display:flex; flex-direction:column; gap:10px;">
   <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
     <span style="font-size:11px; color:#888; margin-left:5px;">거리 (km)</span>
@@ -227,7 +232,15 @@
     }
 
     // Tesseract 로컬 인식 함수
+// 1. 사진 분석 함수 (파일이 정상적으로 들어왔을 때만 실행)
 async function scanImageLocal(input) {
+  // 이미 이벤트 리스너에서 체크했지만, 혹시 모를 예외를 위해 한 번 더 체크
+  const nameSelect = document.getElementById('runName');
+  if (!nameSelect.value) {
+    input.value = ""; 
+    return;
+  }
+
   if (!input.files || !input.files[0]) return;
   
   const statusEl = document.getElementById('scanStatus');
@@ -243,46 +256,43 @@ async function scanImageLocal(input) {
     const { data: { text } } = await worker.recognize(input.files[0]);
     await worker.terminate();
 
-    // 1. 거리 인식
-    let dist = "";
+    let dist = "", pace = "", time = "";
     const distMatch = text.match(/(\d{1,2}[\.\,]\d{2})/);
     if (distMatch) dist = distMatch[0].replace(',', '.');
-
-    // 2. 페이스 인식
-    let pace = "";
     const paceMatch = text.match(/(\d{1,2}'\d{2})/);
     if (paceMatch) pace = paceMatch[0].trim();
-
-    // 3. 총 시간 인식
-    let time = "";
     const timeMatches = text.match(/(\d{1,2}:\d{2}(?::\d{2})?)/g);
-    if (timeMatches) {
-      time = timeMatches.length > 1 ? timeMatches[1] : timeMatches[0];
-    }
+    if (timeMatches) time = timeMatches.length > 1 ? timeMatches[1] : timeMatches[0];
 
-    // 값 입력
     document.getElementById('runDist').value = dist;
     document.getElementById('runPace').value = pace;
     document.getElementById('runTime').value = time;
 
     statusEl.innerText = "✅ 분석 완료";
-
-    // --- 추가된 확인 알림창 로직 ---
-    const msg = `스캔 결과가 맞나요?\n\n📍 거리: ${dist || '미인식'}km\n⚡ 페이스: ${pace || '미인식'}\n⏱️ 시간: ${time || '미인식'}\n\n틀린 내용이 있다면 직접 수정해 주세요.`;
     
-    if (confirm(msg)) {
-      // '확인' 누르면 그대로 진행
-    } else {
-      // '취소' 누르면 수동 입력을 안내하며 입력창으로 포커스 이동
-      alert("알겠습니다. 인식된 값을 지우거나 직접 수정해 주세요!");
+    if (!confirm(`${nameSelect.value}님, 스캔 결과가 맞나요?\n틀린 부분은 직접 수정 가능합니다.`)) {
       document.getElementById('runDist').focus();
     }
-
   } catch(e) { 
     console.error(e);
     statusEl.innerText = "❌ 스캔 실패 (수동 입력을 이용해 주세요)"; 
   }
 }
+
+// 2. [핵심] 사진 첨부 버튼(label) 클릭 시 이름 체크 (script 하단에 추가)
+document.addEventListener('DOMContentLoaded', () => {
+  const runImgLabel = document.querySelector('label[for="runImg"]');
+  const runNameSelect = document.getElementById('runName');
+
+  runImgLabel.addEventListener('click', (e) => {
+    if (!runNameSelect.value) {
+      e.preventDefault(); // 사진 선택창이 뜨는 것을 막음
+      alert("이름을 선택해주세요!");
+      runNameSelect.focus();
+    }
+  });
+});
+
 
 function openNoticeModal() {
   const noticeHtml = `
