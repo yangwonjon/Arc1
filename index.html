@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" href="logo.png" type="image/png">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ARC2026">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARC2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Pretendard', Arial, sans-serif; text-align: center; background-color: #f8f9fa; color: #333; }
+    .navbar { background-color: #333; display: flex; justify-content: center; position: sticky; top: 0; z-index: 100; }
+    .navbar a { color: white; padding: 14px 0; flex: 1; text-decoration: none; font-size: 14px; cursor: pointer; border-right: 1px solid #444; }
+    .navbar a:last-child { border-right: none; }
+    .page { display: none; padding: 20px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .page.active { display: block; }
+    .home-content { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .home-logo img { width: 280px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .weather-info { width: 100%; max-width: 450px; background: white; border-radius: 16px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .weather-grid { display: flex; justify-content: space-between; gap: 5px; margin-top: 8px; }
+    .weather-item { flex: 1; padding: 8px 4px; border-radius: 10px; background: #fafafa; border: 1px solid #f0f0f0; min-width: 0; }
+    .weather-item .label { font-size: 10px; color: #999; margin-bottom: 4px; white-space: nowrap; }
+    .weather-item .val { font-size: 13px; font-weight: bold; white-space: nowrap; }
+    .ranking-container { width: 100%; max-width: 400px; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .ranking-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #eee; }
+    .rank-num { font-weight: 800; width: 24px; color: #999; }
+    .rank-1 .rank-num { color: #f1c40f; font-size: 20px; }
+    .rank-name { font-weight: bold; }
+    .rank-val span { color: #27ae60; font-weight: bold; }
+    .loc-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 15px auto; padding: 12px; border-radius: 30px; font-size: 13px; font-weight: bold; max-width: 360px; background: #f0f0f0; color: #888; }
+    .loc-bar.ok { background: #e6f9ee; color: #27ae60; border: 1px solid #27ae60; }
+    .loc-bar.bad { background: #fdecea; color: #e74c3c; border: 1px solid #e74c3c; }
+    .loc-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+    .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 500px; margin: 15px auto; }
+    .member-card { border: 2px solid #ddd; border-radius: 14px; padding: 20px 10px; background: white; cursor: pointer; transition: 0.2s; }
+    .attendance-table { width: 100%; max-width: 600px; margin: 0 auto; border-collapse: collapse; background: white; }
+    .attendance-table td { border: 1px solid #eee; padding: 10px; font-size: 13px; }
+    .adj-btn { width: 32px; height: 32px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    .notice-item { background: white; padding: 18px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; text-align: left; position: relative; max-width: 500px; margin-inline: auto; cursor: pointer; }
+    .notice-img { width: 100%; border-radius: 8px; margin-top: 10px; display: block; object-fit: cover; max-height: 300px; }
+    .delete-btn { position: absolute; top: 15px; right: 15px; background: #ffeded; color: #e74c3c; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; z-index: 10; }
+    .btn-main { padding: 12px 24px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; max-width: 400px; }
+    .kma-btn { display: block; background: #e3f2fd; color: #1976d2; text-decoration: none; padding: 12px; border-radius: 12px; font-size: 12px; font-weight: bold; border: 1px solid #bbdefb; margin-top: 10px; }
+    .post-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .post-modal.active { display: flex; }
+    .post-modal-content { background: white; width: 95%; max-width: 500px; height: 90vh; border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-main { padding: 20px; flex: 1; overflow-y: auto; text-align: left; }
+    .cmt-box { background: #f9f9f9; padding: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; min-height: 300px; }
+    #commentList { flex: 1; overflow-y: auto; margin-top: 10px; }
+    .cmt-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .cmt-del { color: #e74c3c; font-size: 11px; cursor: pointer; margin-left: 8px; }
+    .cmt-input-row { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+    .cmt-input-top { display: flex; gap: 5px; }
+    .cmt-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+    .cmt-pw { width: 60px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; text-align: center; }
+    .like-area { display: flex; gap: 15px; margin-top: 15px; font-weight: bold; }
+    .like-btn { cursor: pointer; transition: 0.1s; display: flex; align-items: center; gap: 4px; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; }
+    .calendar-container { max-width: 400px; margin: 0 auto; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 15px; }
+    .calendar-label { font-size: 11px; color: #999; font-weight: bold; padding-bottom: 5px; }
+    .calendar-day { aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 14px; border-radius: 8px; }
+    .calendar-day.today { background: #ffeded; color: #e74c3c; font-weight: bold; border: 1px solid #e74c3c; }
+
+    /* 오목 스타일 */
+    #page-omok { background: #1a1a2e; min-height: 100vh; padding: 20px; }
+    #omokContainer { position: relative; width: 95vw; max-width: 500px; background: #16213e; padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin: 0 auto; }
+    #omokContainer h2 { margin: 0 0 15px 0; text-align: center; color: #4ecca3; }
+    .omok-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(8px); background: rgba(26, 26, 46, 0.9); border-radius: 15px; }
+    .omok-btn { padding: 15px 40px; font-size: 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; width: 70%; transition: 0.3s; }
+    .start-btn, .next-btn { background: #4ecca3; color: #1a1a2e; }
+    .retry-btn { background: #e67e22; color: #fff; }
+    .info-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 14px; }
+    #omokStatus { color: #4ecca3; font-weight: bold; font-size: 18px; }
+    #omokLevelDisplay { padding: 4px 12px; border: 2px solid; border-radius: 20px; font-weight: bold; }
+    #omokCanvas { display: block; width: 100%; aspect-ratio: 1/1; background: #dcb35c; border: 3px solid #5a3e2b; border-radius: 8px; touch-action: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <a onclick="showPage('home')">홈</a>
+    <a onclick="showPage('attendance')">출석 체크</a>
+    <a onclick="showPage('calendar')">일정표</a>
+    <a onclick="showPage('etc')">런닝기록</a>
+    <a onclick="showPage('freeboard')">자유게시판</a>
+    <a onclick="showPage('omok')">오목</a>
+  </div>
+
+  <div class="page active" id="page-home">
+    <div class="home-content">
+      <div class="home-logo"><img src="logo.png"></div>
+      <div class="weather-info">
+        <div style="font-size: 11px; font-weight: bold; color: #555;">📍 안덕면 실시간 날씨 (20시 기준)</div>
+        <div class="weather-grid">
+          <div class="weather-item"><div class="label">현재 기온</div><div class="val"><span id="currTemp">--</span>°</div></div>
+          <div class="weather-item"><div class="label">20시/체감</div><div class="val"><span id="tonightTemp">--</span>°/<span id="tonightFeel">--</span>°</div></div>
+          <div class="weather-item"><div class="label">비/확률</div><div class="val" style="color: #3498db;"><span id="rainForecast">0</span>m/<span id="rainPop">0</span>%</div></div>
+        </div>
+        <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do?stnId=184" target="_blank" class="kma-btn">기상청 예보 확인</a>
+      </div>
+      <div class="ranking-container">
+        <div class="ranking-title">🏆 실시간 출석 랭킹</div>
+        <div id="homeRankingList"></div>
+      </div>
+      <button class="btn-main" style="background:#555;" onclick="openNoticeModal()">공지사항</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-attendance">
+    <h2>출석 체크</h2>
+    <div class="loc-bar checking" id="locBar"><span class="loc-dot"></span><span id="locText">위치 확인 중...</span></div>
+    <div class="member-grid" id="memberGrid"></div>
+    <div style="margin-top:40px;">
+      <p style="font-size: 12px; color: #999; margin-bottom: 10px;">관리자 데이터 조정 (+/-)</p>
+      <table class="attendance-table"><tbody id="attendanceBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="page" id="page-freeboard">
+    <h2>자유게시판</h2>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:30px;">
+      <div style="display:flex; gap:5px; width:100%; max-width:400px;">
+        <input type="text" id="noticeAuthor" placeholder="작성자" style="flex:3; padding:12px; border:1px solid #ddd; border-radius:8px;">
+        <input type="password" id="noticePassword" placeholder="비번" maxlength="4" style="width:60px; padding:12px; border:1px solid #ddd; border-radius:8px;" inputmode="numeric">
+      </div>
+      <input type="text" id="noticeTitle" placeholder="제목" style="width:100%; max-width:400px; padding:12px; border:1px solid #ddd; border-radius:8px;">
+      <textarea id="noticeContent" placeholder="내용을 입력하세요" rows="4" style="width:100%; max-width:400px; padding:12px; border:1px solid #ddd; border-radius:8px;"></textarea>
+      <label class="file-label" for="noticeFile" style="display: block; width: 100%; max-width: 400px; padding: 12px; background: #f0f0f0; border: 1px dashed #bbb; border-radius: 8px; font-size: 13px; cursor: pointer; color: #666; margin-bottom: 5px; text-align: center;">📸 사진 첨부 (선택)</label>
+      <input type="file" id="noticeFile" accept="image/*" style="display:none;" onchange="updateFileName(this)">
+      <div id="fileNameDisplay" style="font-size:11px; color:#27ae60; margin-bottom:5px;"></div>
+      <button id="writeBtn" class="btn-main" onclick="saveNotice()">글쓰기</button>
+    </div>
+    <div id="noticeList"></div>
+  </div>
+
+  <div class="page" id="page-calendar">
+    <h2>활동 일정표</h2>
+    <div class="calendar-container">
+      <h3 id="calendarMonth">2026년 4월</h3>
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div style="margin-top:20px; text-align:left; font-size:13px; color:#666; border-top:1px solid #eee; padding-top:10px;">
+        🏃‍♂️ <b>정기 모임:</b> 매주 수, 금, 토 (20:00)
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-etc">
+    <h2>러닝 기록 </h2>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; background:white; padding:20px; border-radius:15px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+      <p style="font-size:12px; color:#666;">나이키/가민 흰색 배경 스크린샷 권장</p>
+      <label for="runImg" style="display:block; width:100%; padding:15px; background:#f8f9fa; border:2px dashed #333; border-radius:10px; cursor:pointer; font-weight:bold;">📸 러닝 인증샷 선택</label>
+      <input type="file" id="runImg" accept="image/*" style="display:none;" onchange="scanImageLocal(this)">
+      <div id="scanStatus" style="font-size:13px; color:#1976d2; font-weight:bold; display:none;">분석 대기 중...</div>
+<select id="runName" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px;">
+    <option value="" disabled selected>이름 선택</option>
+    <option value="고영지">고영지</option>
+    <option value="윤민혁">윤민혁</option>
+    <option value="양원준">양원준</option>
+    <option value="김민수">김민수</option>
+    <option value="지항민">지항민</option>
+    <option value="송지용">송지용</option>
+    <option value="김해건">김해건</option>
+</select>
+<div style="width:100%; display:flex; flex-direction:column; gap:10px;">
+  <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+    <span style="font-size:11px; color:#888; margin-left:5px;">거리 (km)</span>
+    <input type="text" id="runDist" placeholder="0.00" style="width:100%; padding:14px; border:1px solid #ddd; border-radius:10px; font-size:15px; font-weight:bold;">
+  </div>
+  
+  <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+    <span style="font-size:11px; color:#888; margin-left:5px;">평균 페이스</span>
+    <input type="text" id="runPace" placeholder="0'00''" style="width:100%; padding:14px; border:1px solid #ddd; border-radius:10px; font-size:15px; font-weight:bold;">
+  </div>
+
+  <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+    <span style="font-size:11px; color:#888; margin-left:5px;">총 주행 시간</span>
+    <input type="text" id="runTime" placeholder="00:00" style="width:100%; padding:14px; border:1px solid #ddd; border-radius:10px; font-size:15px; font-weight:bold;">
+  </div>
+</div>
+      <button class="btn-main" onclick="saveRun()" style="margin-top:10px; background:#27ae60;">기록 저장하기</button>
+    </div>
+    <table class="attendance-table" style="margin-top:20px;">
+      <thead><tr style="background:#eee;"><th>날짜</th><th>이름</th><th>거리</th><th>페이스</th><th>인증/삭제</th></tr></thead>
+      <tbody id="runBody"></tbody>
+    </table>
+  </div>
+
+  <!-- 오목 페이지 -->
+<div class="page" id="page-omok">
+  <div id="omokContainer">
+    <h2>오목 챌린지</h2>
+
+    <div id="omokStartOverlay" class="omok-overlay">
+      <h1 style="color: #4ecca3; margin-bottom: 25px;">OMOK AI</h1>
+      
+      <div style="margin-bottom: 25px; width: 80%; max-width: 300px;">
+        <p style="color: white; font-size: 14px; margin-bottom: 10px;">플레이어를 선택해주세요</p>
+        <select id="omokPlayerName" style="width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; background: #fff;">
+          <option value="" disabled selected>이름 선택</option>
+          <option value="고영지">고영지</option>
+          <option value="윤민혁">윤민혁</option>
+          <option value="양원준">양원준</option>
+          <option value="김민수">김민수</option>
+          <option value="지항민">지항민</option>
+          <option value="송지용">송지용</option>
+          <option value="김해건">김해건</option>
+        </select>
+      </div>
+
+      <button class="omok-btn start-btn" onclick="startOmokGame()">도전 시작</button>
+    </div>
+
+    <div id="omokResultOverlay" class="omok-overlay" style="display:none;">
+      <h2 id="omokOverlayMsg" style="font-size: 36px; margin-bottom: 30px;">WIN</h2>
+      <button id="omokOverlayBtn" class="omok-btn next-btn" onclick="closeOmokOverlay()">계속하기</button>
+    </div>
+
+    <div class="info-bar">
+      <div id="omokStatus">준비 완료</div>
+      <div id="omokLevelDisplay">1단계 🌱</div>
+    </div>
+
+    <canvas id="omokCanvas"></canvas>
+  </div>
+</div>
+
+  <div class="post-modal" id="postDetailModal" onclick="closePostModal()">
+    <div class="post-modal-content" onclick="event.stopPropagation()">
+      <div class="modal-main" id="modalDetailContent"></div>
+      <div class="cmt-box">
+        <div id="modalLikeArea" class="like-area"></div>
+        <div id="commentList"></div>
+        <div class="cmt-input-row">
+          <div class="cmt-input-top">
+            <input type="text" id="cmtInput" class="cmt-input" placeholder="댓글 내용">
+            <input type="password" id="cmtPw" class="cmt-pw" placeholder="비번" maxlength="4">
+          </div>
+          <button onclick="addComment()" style="padding:10px; background:#333; color:white; border:none; border-radius:8px;">등록</button>
+        </div>
+      </div>
+      <button onclick="closePostModal()" style="padding:15px; border:none; background:#eee; font-weight:bold;">닫기</button>
+    </div>
+  </div>
+
+  <div class="modal" id="noticeModal">
+    <div class="modal-content"></div>
+  </div>
+
+  <script>
+    const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
+    const TOTAL = 12, ADMIN_KEY = '1723', MASTER_KEY = '0179';
+    const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
+    const supabaseClient = window.supabase.createClient("https://ndctjtuxpkwdldhqbnih.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY");
+
+    let locationOk = false, allNotices = [], currentPostId = null;
+
+    window.onload = function() {
+      updateWeather();
+      loadHomeRanking(); 
+      setTimeout(openNoticeModal, 500);
+    };
+
+    async function loadHomeRanking() {
+      const { data } = await supabaseClient.from('attendance').select('name');
+      const countsRanking = {}; MEMBERS.forEach(m => countsRanking[m] = 0);
+      data?.forEach(r => { if(countsRanking[r.name] !== undefined) countsRanking[r.name]++; });
+      const sorted = MEMBERS.map(n => ({ 
+        name: n, 
+        count: countsRanking[n], 
+        rate: Math.round(countsRanking[n]/TOTAL*100) 
+      })).sort((a,b) => b.count - a.count);
+      
+      document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => `
+        <div class="ranking-item ${i < 3 ? 'rank-'+(i+1) : ''}">
+          <span class="rank-num">${i+1}</span>
+          <span class="rank-name">${m.name}</span>
+          <span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span>
+        </div>`).join('');
+    }
+
+    async function scanImageLocal(input) {
+      const nameSelect = document.getElementById('runName');
+      if (!nameSelect.value) {
+        input.value = ""; 
+        return;
+      }
+
+      if (!input.files || !input.files[0]) return;
+      
+      const statusEl = document.getElementById('scanStatus');
+      statusEl.style.display = 'block'; 
+      statusEl.innerText = "🔍 이미지 분석 중...";
+
+      try {
+        const worker = await Tesseract.createWorker('eng');
+        await worker.setParameters({ 
+          tessedit_char_whitelist: '0123456789.:\'" ' 
+        });
+
+        const { data: { text } } = await worker.recognize(input.files[0]);
+        await worker.terminate();
+
+        let dist = "", pace = "", time = "";
+        const distMatch = text.match(/(\d{1,2}[\.\,]\d{2})/);
+        if (distMatch) dist = distMatch[0].replace(',', '.');
+        const paceMatch = text.match(/(\d{1,2}'\d{2})/);
+        if (paceMatch) pace = paceMatch[0].trim();
+        const timeMatches = text.match(/(\d{1,2}:\d{2}(?::\d{2})?)/g);
+        if (timeMatches) time = timeMatches.length > 1 ? timeMatches[1] : timeMatches[0];
+
+        document.getElementById('runDist').value = dist;
+        document.getElementById('runPace').value = pace;
+        document.getElementById('runTime').value = time;
+
+        statusEl.innerText = "✅ 분석 완료";
+        
+        if (!confirm(`${nameSelect.value}님, 스캔 결과가 맞나요?\n틀린 부분은 직접 수정 가능합니다.`)) {
+          document.getElementById('runDist').focus();
+        }
+      } catch(e) { 
+        console.error(e);
+        statusEl.innerText = "❌ 스캔 실패 (수동 입력을 이용해 주세요)"; 
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const runImgLabel = document.querySelector('label[for="runImg"]');
+      const runNameSelect = document.getElementById('runName');
+
+      runImgLabel.addEventListener('click', (e) => {
+        if (!runNameSelect.value) {
+          e.preventDefault();
+          alert("이름을 선택해주세요!");
+          runNameSelect.focus();
+        }
+      });
+    });
+
+    function openNoticeModal() {
+      const noticeHtml = `
+        <div style="text-align:left; line-height:1.6;">
+          <h3 style="text-align:center; color:#e74c3c; font-size: 20px;">📢 ARC 2기 운영 수칙</h3>
+          
+          <div style="background:#fef2f2; padding:12px; border-radius:10px; margin:15px 0; border:1px solid #fee2e2;">
+            <p><b>💰 회비:</b> 월 2만원 (15~20일)</p>
+            <p style="font-size:13px; color:#c0392b; font-weight:bold;">카뱅 3333-16-7331916</p>
+          </div>
+          
+          <p><b>🏃 정기모임:</b> 수·금·토 (20:00)</p>
+          <p style="font-size:12px; color:#666;">- 참석률 33.3% 미달 시 회비 2배</p>
+          <p><b>⚠️ 참석보고:</b> 당일 19시까지!</p>
+          
+          <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:12px; border:1px solid #eee;">
+            <p style="margin-bottom:8px; font-size:15px;">👑 <b style="color:#333;">회장 :</b> <span style="font-size:18px; color:#000;">고영지</span></p>
+            <p style="margin-bottom:8px; font-size:15px;">🥈 <b style="color:#333;">부회장 :</b> <span style="font-size:18px; color:#000;">윤민혁</span></p>
+            <p style="font-size:15px;">💼 <b style="color:#333;">총무 :</b> <span style="font-size:18px; color:#000;">김민수</span></p>
+          </div>
+
+          <div style="margin-top:25px;">
+            <button onclick="goToAttendance()" style="width:100%; padding:15px; background:#27ae60; color:white; border:none; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(39,174,96,0.2);">
+              🏃‍♂️ 지금 출석 체크하러 가기
+            </button>
+          </div>
+        </div>
+      `;
+      const modalContent = document.querySelector('#noticeModal .modal-content');
+      modalContent.innerHTML = noticeHtml + '<button class="btn-main" onclick="closeNoticeModal()" style="margin-top:15px; background:#eee; color:#666; border:none;">닫기</button>';
+      document.getElementById('noticeModal').classList.add('active');
+    }
+
+    function goToAttendance() {
+      closeNoticeModal();
+      showPage('attendance');
+    }
+
+    async function updateWeather() {
+      const apiKey = "c1aa66c2cae50680cddc975fbf80a45a";
+      try {
+        const currRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${TARGET.lat}&lon=${TARGET.lng}&appid=${apiKey}&units=metric`);
+        if(currRes.ok) { const d = await currRes.json(); document.getElementById('currTemp').innerText = Math.round(d.main.temp); }
+        const foreRes = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${TARGET.lat}&lon=${TARGET.lng}&appid=${apiKey}&units=metric`);
+        if(foreRes.ok) {
+          const fd = await foreRes.json(); const t = fd.list[0];
+          document.getElementById('tonightTemp').innerText = Math.round(t.main.temp);
+          document.getElementById('tonightFeel').innerText = Math.round(t.main.feels_like);
+          document.getElementById('rainPop').innerText = Math.round(t.pop * 100);
+          document.getElementById('rainForecast').innerText = t.rain ? (t.rain['3h'] || 0) : 0;
+        }
+      } catch (e) {}
+    }
+
+    async function loadAttendance() {
+      const { data } = await supabaseClient.from('attendance').select('name');
+      const countsAtt = {}; MEMBERS.forEach(m => countsAtt[m] = 0);
+      data?.forEach(r => { if(countsAtt[r.name] !== undefined) countsAtt[r.name]++; });
+      document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => `<div class="member-card" onclick="doAttend('${m}')"><b>${m}</b><br><small style="color:#999">${countsAtt[m]}회</small></div>`).join('');
+      document.getElementById('attendanceBody').innerHTML = MEMBERS.map(m => `<tr><td>${m}</td><td>${countsAtt[m]}회</td><td>${Math.round(countsAtt[m]/TOTAL*100)}%</td><td><button class="adj-btn" onclick="adjustAttendance('${m}', 1)">+</button> <button class="adj-btn" onclick="adjustAttendance('${m}', -1)">-</button></td></tr>`).join('');
+    }
+
+    function checkLocation() {
+      const bar = document.getElementById('locBar'), txt = document.getElementById('locText');
+      navigator.geolocation.getCurrentPosition(p => {
+        const d = Math.round(getDist(p.coords.latitude, p.coords.longitude, TARGET.lat, TARGET.lng));
+        locationOk = (d <= 500); bar.className = locationOk ? 'loc-bar ok' : 'loc-bar bad';
+        txt.textContent = locationOk ? `✅ 출석 가능 (${d}m)` : `너무 멀어요 (${d}m)`;
+      }, null, { enableHighAccuracy: true });
+    }
+
+    function getDist(l1, g1, l2, g2) {
+      const R = 6371000, dL = (l2-l1)*Math.PI/180, dG = (g2-g1)*Math.PI/180;
+      const a = Math.sin(dL/2)**2 + Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dG/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    async function loadNotices() {
+      const { data } = await supabaseClient.from('notices').select('*').order('created_at', { ascending: false });
+      allNotices = data;
+      const { data: cmtData } = await supabaseClient.from('comments').select('post_id');
+      const cCounts = {}; cmtData?.forEach(c => cCounts[c.post_id] = (cCounts[c.post_id] || 0) + 1);
+      document.getElementById('noticeList').innerHTML = data.map((n, i) => `
+        <div class="notice-item" onclick="openPostModal(${i})">
+          <button class="delete-btn" onclick="event.stopPropagation(); deleteNotice(${n.id})">삭제</button>
+          <h4>${n.title}</h4>
+          <div style="font-size:11px; color:#bbb;">${n.author} / ${n.created_at.slice(5,16)}</div>
+          ${n.image_url ? `<img src="${n.image_url}" class="notice-img">` : ''}
+          <div class="like-area" style="font-size:12px; color:#888;">
+            👍 ${n.likes_count||0} 👎 ${n.dislikes_count||0} 💬 ${cCounts[n.id]||0}
+          </div>
+        </div>`).join('');
+    }
+
+    async function openPostModal(idx) {
+      const n = allNotices[idx]; currentPostId = n.id;
+      document.getElementById('modalDetailContent').innerHTML = `<h3>${n.title}</h3><p>${n.content}</p>${n.image_url?`<img src="${n.image_url}" style="width:100%; border-radius:10px; margin-top:10px;">`:''}`;
+      document.getElementById('modalLikeArea').innerHTML = `<div class="like-btn" onclick="handleReaction(${n.id},'like')">👍 ${n.likes_count||0}</div><div class="like-btn" onclick="handleReaction(${n.id},'dislike')">👎 ${n.dislikes_count||0}</div>`;
+      loadComments(n.id);
+      document.getElementById('postDetailModal').classList.add('active');
+    }
+
+    async function loadComments(pid) {
+      const { data } = await supabaseClient.from('comments').select('*').eq('post_id', pid);
+      document.getElementById('commentList').innerHTML = data.map(c => `<div class="cmt-item"><span>${c.content}</span><span class="cmt-del" onclick="deleteComment(${c.id},'${c.password}')">X</span></div>`).join('');
+    }
+
+    async function handleReaction(id, type) {
+      const col = type === 'like' ? 'likes_count' : 'dislikes_count';
+      const { data } = await supabaseClient.from('notices').select(col).eq('id', id).single();
+      await supabaseClient.from('notices').update({ [col]: (data[col] || 0) + 1 }).eq('id', id);
+      loadNotices(); closePostModal();
+    }
+
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + id).classList.add('active');
+      if(id==='home') loadHomeRanking();
+      if(id==='attendance') { checkLocation(); loadAttendance(); }
+      if(id==='freeboard') loadNotices();
+      if(id==='calendar') renderCalendar();
+      if(id==='etc') loadRuns();
+      if(id==='omok') initOmokPage();
+    }
+
+    function closeNoticeModal() { document.getElementById('noticeModal').classList.remove('active'); }
+    function closePostModal() { document.getElementById('postDetailModal').classList.remove('active'); }
+    async function deleteNotice(id) { const pw = prompt('비번'); if(pw===MASTER_KEY) { await supabaseClient.from('notices').delete().eq('id',id); loadNotices(); } }
+    
+    function renderCalendar() {
+      const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+      document.getElementById('calendarMonth').innerText = `${y}년 ${m+1}월`;
+      const grid = document.getElementById('calendarGrid'), first = new Date(y, m, 1).getDay(), last = new Date(y, m+1, 0).getDate();
+      grid.innerHTML = ['일','월','화','수','목','금','토'].map(l => `<div class="calendar-label">${l}</div>`).join('');
+      for(let i=0; i<first; i++) grid.innerHTML += `<div></div>`;
+      for(let i=1; i<=last; i++) grid.innerHTML += `<div class="calendar-day ${i===d.getDate()?'today':''}">${i}</div>`;
+    }
+
+    async function saveRun() {
+      const n = document.getElementById('runName').value, d = document.getElementById('runDist').value, p = document.getElementById('runPace').value, t = document.getElementById('runTime').value;
+      const fileInput = document.getElementById('runImg'); let url = null;
+      if (fileInput.files.length > 0) {
+        const fn = `run_${Date.now()}.jpg`; await supabaseClient.storage.from('runs').upload(fn, fileInput.files[0]);
+        url = supabaseClient.storage.from('runs').getPublicUrl(fn).data.publicUrl;
+      }
+      await supabaseClient.from('runs').insert([{ name:n, dist:d, pace:p, time:t, image_url:url }]);
+      alert("저장 완료!"); loadRuns();
+    }
+
+    async function loadRuns() {
+      const { data } = await supabaseClient.from('runs').select('*').order('created_at', { ascending: false });
+      document.getElementById('runBody').innerHTML = data.map(r => `
+        <tr><td>${r.created_at.slice(5,10)}</td><td>${r.name}</td><td>${r.dist}km</td><td>${r.pace}</td>
+        <td>${r.image_url ? `<button onclick="window.open('${r.image_url}')">📷</button>` : ''}<button onclick="deleteRun(${r.id})">❌</button></td></tr>`).join('');
+    }
+
+    async function deleteRun(id) { if(prompt("마스터키")===MASTER_KEY) { await supabaseClient.from('runs').delete().eq('id',id); loadRuns(); } }
+
+    async function doAttend(name) {
+      if (!locationOk) {
+        alert("위치 인증이 되지 않았습니다. 근처에서 시도해주세요.");
+        return;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const storageKey = `attended_${todayStr}`;
+      const savedName = localStorage.getItem(storageKey);
+
+      if (savedName) {
+        if (savedName === name) {
+          if (confirm(`오늘 [${name}]님으로 이미 출석하셨습니다.\n출석을 취소하고 다른 사람으로 다시 체크하시겠습니까?`)) {
+            try {
+              const { data: record } = await supabaseClient
+                .from('attendance')
+                .select('id')
+                .eq('name', name)
+                .gte('created_at', todayStr)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+              if (record) {
+                await supabaseClient.from('attendance').delete().eq('id', record.id);
+              }
+
+              localStorage.removeItem(storageKey);
+              alert("출석이 취소되었습니다. 이제 다른 이름으로 출석할 수 있습니다.");
+              loadAttendance();
+              loadHomeRanking();
+            } catch (e) {
+              alert("취소 처리 중 오류가 발생했습니다.");
+            }
+          }
+        } else {
+          alert(`이 기기에서는 오늘 이미 [${savedName}]님으로 출석이 완료되었습니다.\n수정이 필요하면 [${savedName}] 이름을 눌러 취소 후 다시 시도해주세요.`);
+        }
+        return;
+      }
+
+      if (confirm(`[${name}]님으로 오늘 출석을 체크하시겠습니까?\n(기기당 하루 1회만 가능)`)) {
+        try {
+          const { error } = await supabaseClient
+            .from('attendance')
+            .insert([{ name: name }]);
+
+          if (error) throw error;
+
+          localStorage.setItem(storageKey, name);
+          alert(`[${name}]님, 출석 체크 완료!`);
+          
+          loadAttendance();
+          loadHomeRanking();
+        } catch (e) {
+          console.error(e);
+          alert("출석 저장 중 오류가 발생했습니다.");
+        }
+      }
+    }
+
+    async function adjustAttendance(name, amount) {
+      const key = prompt("관리자 비밀번호를 입력하세요.");
+      if (key !== ADMIN_KEY && key !== MASTER_KEY) {
+        alert("비밀번호가 틀렸습니다.");
+        return;
+      }
+
+      if (amount > 0) {
+        const { error } = await supabaseClient
+          .from('attendance')
+          .insert([{ name: name }]);
+        
+        if (error) {
+          alert("추가 중 오류 발생");
+          return;
+        }
+      } else {
+        const { data: latestRecord } = await supabaseClient
+          .from('attendance')
+          .select('id')
+          .eq('name', name)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (latestRecord) {
+          const { error } = await supabaseClient
+            .from('attendance')
+            .delete()
+            .eq('id', latestRecord.id);
+          
+          if (error) {
+            alert("삭제 중 오류 발생");
+            return;
+          }
+        } else {
+          alert("삭제할 출석 기록이 없습니다.");
+          return;
+        }
+      }
+
+      alert("조정 완료!");
+      loadAttendance();
+      loadHomeRanking();
+    }
+
+    /* ===================== 오목 게임 로직 ===================== */
+    const omokCanvas = document.getElementById('omokCanvas');
+    const omokCtx = omokCanvas.getContext('2d');
+    const statusEl = document.getElementById('omokStatus');
+    const levelEl = document.getElementById('omokLevelDisplay');
+    const startOverlay = document.getElementById('omokStartOverlay');
+    const resultOverlay = document.getElementById('omokResultOverlay');
+
+    const OMOK_SIZE = 13;
+    let omokCellSize, omokPadding, omokBoard, omokGameOver = true, omokTurn = 1, currentLevel = 1;
+    let omokInitialized = false;
+
+    const levels = {
+      1: { name: "1단계 🌱", weight: 100, defense: 10.0, randomness: 0, color: "#2ecc71" },
+      2: { name: "2단계 🌿", weight: 200, defense: 50, randomness: 0, color: "#a2de96" },
+      3: { name: "3단계 🌳", weight: 300, defense: 600, randomness: 10, color: "#f1c40f" },
+      4: { name: "4단계 🔥", weight: 400, defense: 800, randomness: 0, color: "#e67e22" },
+      5: { name: "5단계 👑", weight: 500, defense: 1000, randomness: 0, color: "#e74c3c" },
+      6: { name: "6단계 🌌", weight: 1000, defense: 2000, randomness: 0, color: "#ffffff" }
+    };
+
+    function initOmokPage() {
+      if (!omokInitialized) {
+        omokResize();
+        omokCanvas.addEventListener('mousedown', omokHandleInput);
+        omokCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); omokHandleInput(e); }, {passive:false});
+        window.addEventListener('resize', omokResize);
+        omokInitialized = true;
+      } else {
+        omokResize();
+      }
+    }
+
+    function omokResize() {
+      omokCanvas.width = 1000;
+      omokCanvas.height = 1000;
+      omokPadding = omokCanvas.width * 0.05;
+      omokCellSize = (omokCanvas.width - omokPadding * 2) / (OMOK_SIZE - 1);
+      omokDraw();
+    }
+
+    function startOmokGame() {
+      startOverlay.style.display = 'none';
+      omokInitGame();
+    }
+
+    function omokInitGame() {
+      omokBoard = Array.from({ length: OMOK_SIZE }, () => Array(OMOK_SIZE).fill(0));
+      omokGameOver = false; omokTurn = 1;
+      statusEl.innerText = "내 차례 (흑)";
+      const lv = levels[currentLevel];
+      levelEl.innerText = lv.name;
+      levelEl.style.color = lv.color;
+      levelEl.style.borderColor = lv.color;
+      omokDraw();
+    }
+
+    function omokDraw() {
+      omokCtx.clearRect(0, 0, omokCanvas.width, omokCanvas.height);
+      omokCtx.strokeStyle = '#444';
+      omokCtx.lineWidth = 2;
+      for (let i = 0; i < OMOK_SIZE; i++) {
+        const pos = omokPadding + i * omokCellSize;
+        omokCtx.beginPath(); omokCtx.moveTo(omokPadding, pos); omokCtx.lineTo(omokCanvas.width - omokPadding, pos); omokCtx.stroke();
+        omokCtx.beginPath(); omokCtx.moveTo(pos, omokPadding); omokCtx.lineTo(pos, omokCanvas.height - omokPadding); omokCtx.stroke();
+      }
+      if (!omokBoard) return;
+      for (let r = 0; r < OMOK_SIZE; r++) {
+        for (let c = 0; c < OMOK_SIZE; c++) {
+          if (omokBoard[r][c] !== 0) {
+            const x = omokPadding + c * omokCellSize, y = omokPadding + r * omokCellSize;
+            omokCtx.beginPath(); omokCtx.arc(x, y, omokCellSize * 0.42, 0, Math.PI * 2);
+            omokCtx.fillStyle = omokBoard[r][c] === 1 ? "#000" : "#fff";
+            omokCtx.fill(); omokCtx.strokeStyle = "#000"; omokCtx.lineWidth = 1; omokCtx.stroke();
+          }
+        }
+      }
+    }
+
+    function omokHandleInput(e) {
+      if (omokGameOver || omokTurn !== 1) return;
+      const rect = omokCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const x = (clientX - rect.left) * (omokCanvas.width / rect.width);
+      const y = (clientY - rect.top) * (omokCanvas.height / rect.height);
+      const c = Math.round((x - omokPadding) / omokCellSize), r = Math.round((y - omokPadding) / omokCellSize);
+      
+      if (r >= 0 && r < OMOK_SIZE && c >= 0 && c < OMOK_SIZE && omokBoard[r][c] === 0) {
+        omokBoard[r][c] = 1;
+        if (omokCheckWin(r, c, 1)) { omokFinish(1); }
+        else { omokTurn = 2; statusEl.innerText = "상대방 수 생각 중..."; omokDraw(); setTimeout(omokAiTurn, 600); }
+      }
+    }
+
+    function omokAiTurn() {
+      let bestScore = -1, moves = [];
+      const cfg = levels[currentLevel];
+      for (let r = 0; r < OMOK_SIZE; r++) {
+        for (let c = 0; c < OMOK_SIZE; c++) {
+          if (omokBoard[r][c] === 0) {
+            let score = 0;
+            [[1,0],[0,1],[1,1],[1,-1]].forEach(([dr,dc]) => {
+              const my = omokGetCont(r,c,dr,dc,2), op = omokGetCont(r,c,dr,dc,1);
+              if(my > 0) score += Math.pow(cfg.weight, my);
+              if(op > 0) score += Math.pow(cfg.weight+2, op) * cfg.defense;
+            });
+            score += Math.random() * cfg.randomness;
+            if(score > bestScore) { bestScore = score; moves = [{r,c}]; }
+            else if(score === bestScore) moves.push({r,c});
+          }
+        }
+      }
+      const m = moves[Math.floor(Math.random()*moves.length)];
+      omokBoard[m.r][m.c] = 2;
+      if (omokCheckWin(m.r, m.c, 2)) omokFinish(2);
+      else { omokTurn = 1; statusEl.innerText = "내 차례 (흑)"; omokDraw(); }
+    }
+
+    function omokGetCont(r,c,dr,dc,t) {
+      let cnt = 0;
+      [[dr,dc],[-dr,-dc]].forEach(([tr,tc]) => {
+        let nr=r+tr, nc=c+tc;
+        while(nr>=0 && nr<OMOK_SIZE && nc>=0 && nc<OMOK_SIZE && omokBoard[nr][nc]===t) { cnt++; nr+=tr; nc+=tc; }
+      });
+      return cnt;
+    }
+
+    function omokCheckWin(r,c,t) { return [[1,0],[0,1],[1,1],[1,-1]].some(([dr,dc]) => omokGetCont(r,c,dr,dc,t) >= 4); }
+
+    function omokFinish(winner) {
+      omokGameOver = true; omokDraw();
+      setTimeout(() => {
+        resultOverlay.style.display = 'flex';
+        const msg = document.getElementById('omokOverlayMsg');
+        const btn = document.getElementById('omokOverlayBtn');
+        if(winner === 1) { 
+          msg.innerText = "승리! 🎉"; currentLevel = Math.min(currentLevel+1, 6); 
+          btn.className = "omok-btn next-btn"; btn.innerText = "다음 단계로";
+        } else { 
+          msg.innerText = "패배.. 💀"; 
+          btn.className = "omok-btn retry-btn"; btn.innerText = "다시 도전";
+        }
+      }, 500);
+    }
+
+    function closeOmokOverlay() { resultOverlay.style.display = 'none'; omokInitGame(); }
+  </script>
+</body>
+</html>
