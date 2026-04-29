@@ -11,6 +11,32 @@
   <title>ARC2026</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
+  /* 벌금 대상자(40% 미만) 스타일 */
+/* 벌금 대상자(40% 미만) 스타일 - 테두리 제거 버전 */
+/* 벌금 대상자(40% 미만) 스타일 - 배경 없이 글자만 강조 */
+/* 벌금 대상자(40% 미만) 스타일 - 글자만 부드럽게 깜빡임 */
+/* 벌금 대상자(40% 미만) 스타일 - 색상 변화 없이 은은한 깜빡임만 */
+/* 벌금 대상자(40% 미만) 스타일 - 깜빡임 없이 무채색 처리 */
+.penalty-row {
+  background-color: transparent !important;
+}
+
+/* 이름과 수치를 일반 검정색으로 통일 */
+.penalty-row .rank-name,
+.penalty-row .rank-val {
+  color: #333 !important;
+}
+
+/* 기존 초록색 강조색을 회색으로 변경하여 대비를 줌 */
+.penalty-row .rank-val span {
+  color: #888 !important;
+  font-weight: normal;
+}
+
+
+
+
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Pretendard', Arial, sans-serif; text-align: center; background-color: #f8f9fa; color: #333; }
     .navbar { background-color: #333; display: flex; justify-content: center; position: sticky; top: 0; z-index: 100; }
@@ -107,7 +133,7 @@
         <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do?stnId=184" target="_blank" class="kma-btn">기상청 예보 확인</a>
       </div>
       <div class="ranking-container">
-        <div class="ranking-title">🏆 실시간 출석 랭킹</div>
+<div class="ranking-title">👑 5월 출석 랭킹 (40% 미만은 벌금)</div>
         <div id="homeRankingList"></div>
       </div>
       <button class="btn-main" style="background:#555;" onclick="openNoticeModal()">공지사항</button>
@@ -269,22 +295,31 @@
     };
 
     async function loadHomeRanking() {
-      const { data } = await supabaseClient.from('attendance').select('name');
-      const countsRanking = {}; MEMBERS.forEach(m => countsRanking[m] = 0);
-      data?.forEach(r => { if(countsRanking[r.name] !== undefined) countsRanking[r.name]++; });
-      const sorted = MEMBERS.map(n => ({ 
-        name: n, 
-        count: countsRanking[n], 
-        rate: Math.round(countsRanking[n]/TOTAL*100) 
-      })).sort((a,b) => b.count - a.count);
-      
-      document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => `
-        <div class="ranking-item ${i < 3 ? 'rank-'+(i+1) : ''}">
-          <span class="rank-num">${i+1}</span>
-          <span class="rank-name">${m.name}</span>
-          <span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span>
-        </div>`).join('');
-    }
+  const { data } = await supabaseClient.from('attendance').select('name');
+  const countsRanking = {}; MEMBERS.forEach(m => countsRanking[m] = 0);
+  data?.forEach(r => { if(countsRanking[r.name] !== undefined) countsRanking[r.name]++; });
+  
+  const sorted = MEMBERS.map(n => {
+    const count = countsRanking[n];
+    const rate = Math.round(count / TOTAL * 100);
+    return { name: n, count, rate };
+  }).sort((a,b) => b.count - a.count);
+  
+  document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => {
+    // 40% 미만인지 체크 (벌금 대상)
+    const isPenalty = m.rate < 40;
+    const penaltyClass = isPenalty ? 'penalty-row' : '';
+    const rankClass = i < 3 ? 'rank-'+(i+1) : '';
+
+    return `
+      <div class="ranking-item ${rankClass} ${penaltyClass}">
+        <span class="rank-num">${i+1}</span>
+        <span class="rank-name">${m.name} ${isPenalty ? '⚠️' : ''}</span>
+        <span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span>
+      </div>`;
+  }).join('');
+}
+
 
     async function scanImageLocal(input) {
       const nameSelect = document.getElementById('runName');
