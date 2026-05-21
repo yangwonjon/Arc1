@@ -132,12 +132,18 @@
         </div>
         <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do?stnId=184" target="_blank" class="kma-btn">기상청 예보 확인</a>
       </div>
-      <div class="ranking-container">
-<div class="ranking-title">👑 5월 출석 랭킹 (40% 미만은 벌금)</div>
-        <div id="homeRankingList"></div>
-      </div>
-      <button class="btn-main" style="background:#555;" onclick="openNoticeModal()">공지사항</button>
-    </div>
+  <div class="ranking-container" style="text-align: center;">
+  <!-- 제목과 배지를 가로로 나란히 두고 정중앙(justify-content: center) 정렬 -->
+  <div class="ranking-title" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-weight: bold;">
+    👑 5월 출석 랭킹 
+    <span style="font-size: 13px; font-weight: bold; color: #e03131; background: #fff5f5; border: 1px solid #ffc9c9; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+      40% 미만시 벌금 5만원
+    </span>
+  </div>
+  <div id="homeRankingList"></div>
+</div>
+<button class="btn-main" style="background:#555; display: block; margin: 15px auto 0 auto;" onclick="openNoticeModal()">공지사항</button>
+</div>
   </div>
 
   <div class="page" id="page-attendance">
