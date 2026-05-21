@@ -294,31 +294,59 @@
       setTimeout(openNoticeModal, 500);
     };
 
-    async function loadHomeRanking() {
-  const { data } = await supabaseClient.from('attendance').select('name');
-  const countsRanking = {}; MEMBERS.forEach(m => countsRanking[m] = 0);
-  data?.forEach(r => { if(countsRanking[r.name] !== undefined) countsRanking[r.name]++; });
-  
-  const sorted = MEMBERS.map(n => {
-    const count = countsRanking[n];
-    const rate = Math.round(count / TOTAL * 100);
-    return { name: n, count, rate };
-  }).sort((a,b) => b.count - a.count);
-  
-  document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => {
-    // 40% 미만인지 체크 (벌금 대상)
-    const isPenalty = m.rate < 40;
-    const penaltyClass = isPenalty ? 'penalty-row' : '';
-    const rankClass = i < 3 ? 'rank-'+(i+1) : '';
+        async function loadHomeRanking() {
+      // name과 함께 created_at(날짜) 데이터도 최신순으로 정렬해서 가져옵니다.
+      const { data } = await supabaseClient.from('attendance').select('name, created_at').order('created_at', { ascending: false });
+      
+      const countsRanking = {}; 
+      const lastDateRanking = {};
+      const weeks = ['일', '월', '화', '수', '목', '금', '토'];
+      
+      MEMBERS.forEach(m => {
+        countsRanking[m] = 0;
+        lastDateRanking[m] = '-';
+      });
+      
+      data?.forEach(r => { 
+        if(countsRanking[r.name] !== undefined) {
+          countsRanking[r.name]++;
+          
+          if(lastDateRanking[r.name] === '-') {
+            const dateStr = r.created_at.slice(0, 10); 
+            const parts = dateStr.split('-');
+            
+            const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+            const monthDay = dateStr.slice(5, 10); 
+            const weekName = weeks[dateObj.getDay()]; 
+            
+            lastDateRanking[r.name] = `${monthDay} ${weekName}`; 
+          }
+        }
+      });
+      
+      const sorted = MEMBERS.map(n => {
+        const count = countsRanking[n];
+        const rate = Math.round(count / TOTAL * 100);
+        const lastDate = lastDateRanking[n];
+        return { name: n, count, rate, lastDate };
+      }).sort((a,b) => b.count - a.count);
+      
+      document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => {
+        const isPenalty = m.rate < 40;
+        const penaltyClass = isPenalty ? 'penalty-row' : '';
+        const rankClass = i < 3 ? 'rank-'+(i+1) : '';
 
-    return `
-      <div class="ranking-item ${rankClass} ${penaltyClass}">
-        <span class="rank-num">${i+1}</span>
-        <span class="rank-name">${m.name} ${isPenalty ? '⚠️' : ''}</span>
-        <span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span>
-      </div>`;
-  }).join('');
-}
+        return `
+          <div class="ranking-item ${rankClass} ${penaltyClass}">
+            <span class="rank-num">${i+1}</span>
+            <div class="rank-name" style="display: flex; align-items: center; gap: 8px; flex: 1; text-align: left; margin-left: 10px;">
+              <span style="font-weight: bold;">${m.name} ${isPenalty ? '⚠️' : ''}</span>
+              <span style="font-weight: 600; color: #2f3542; font-size: 11px; background: #eccc68; padding: 2px 6px; border-radius: 4px;">최근: ${m.lastDate}</span>
+            </div>
+            <span class="rank-val">${m.count}회 (<span>${m.rate}%</span>)</span>
+          </div>`;
+      }).join('');
+    }
 
 
     async function scanImageLocal(input) {
