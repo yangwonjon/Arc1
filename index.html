@@ -123,16 +123,7 @@
   <div class="page active" id="page-home">
     <div class="home-content">
       <div class="home-logo"><img src="logo.png"></div>
-      <div class="weather-info">
-        <div style="font-size: 11px; font-weight: bold; color: #555;">📍 안덕면 실시간 날씨 (20시 기준)</div>
-        <div class="weather-grid">
-          <div class="weather-item"><div class="label">현재 기온</div><div class="val"><span id="currTemp">--</span>°</div></div>
-          <div class="weather-item"><div class="label">20시/체감</div><div class="val"><span id="tonightTemp">--</span>°/<span id="tonightFeel">--</span>°</div></div>
-          <div class="weather-item"><div class="label">비/확률</div><div class="val" style="color: #3498db;"><span id="rainForecast">0</span>m/<span id="rainPop">0</span>%</div></div>
-        </div>
-        <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do?stnId=184" target="_blank" class="kma-btn">기상청 예보 확인</a>
-      </div>
-  <div class="ranking-container" style="text-align: center;">
+      <div class="ranking-container" style="text-align: center;">
   <!-- 제목과 배지를 가로로 나란히 두고 정중앙(justify-content: center) 정렬 -->
   <div class="ranking-title" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-weight: bold;">
     👑 5월 출석 랭킹 
@@ -889,65 +880,8 @@
 
     function closeOmokOverlay() { resultOverlay.style.display = 'none'; omokInitGame(); }
       // [현황보기] 버튼을 누르면 실행되는 팝업창(모달) 함수
-    function showMemberAttendanceDetail(name) {
-      // 1. 해당 회원의 출석 날짜 배열 가져오기 (없으면 빈 배열)
-      const dates = (window.currentAttendanceDates && window.currentAttendanceDates[name]) || [];
-      
-      // 2. 날짜 목록을 화면에 보여줄 글자로 만들기
-      let contentHtml = '';
-      if (dates.length === 0) {
-        contentHtml = '<p style="text-align:center; color:#999; margin:20px 0;">출석 기록이 없습니다.</p>';
-      } else {
-        contentHtml = `
-          <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
-            <table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px;">
-              <thead>
-                <tr style="background:#f8f9fa; border-bottom:2px solid #dee2e6;">
-                  <th style="padding:8px; color:#495057;">번호</th>
-                  <th style="padding:8px; color:#495057;">출석 날짜 (요일)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${dates.map((date, idx) => `
-                  <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:8px; color:#868e96;">${idx + 1}</td>
-                    <td style="padding:8px; font-weight:500; color:#212529;">${date}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
-      }
 
-      // 3. 팝업창(모달) 생성 및 띄우기
-      const modal = document.createElement('div');
-      modal.id = 'attendanceDetailModal';
-      modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px; box-sizing:border-box;';
-      
-      modal.innerHTML = `
-        <div style="background:#fff; width:100%; max-width:320px; border-radius:12px; padding:20px; box-sizing:border-box; box-shadow:0 4px 15px rgba(0,0,0,0.2); animation: modalFadeIn 0.2s ease-out;">
-          <h3 style="margin-top:0; margin-bottom:15px; text-align:center; color:#212529; font-size:17px;">
-            <span style="color:#2f3542; font-weight:bold;">${name}</span> 님의 출석 현황
-          </h3>
-          
-          ${contentHtml}
-          
-          <button onclick="document.getElementById('attendanceDetailModal').remove()" style="margin-top:15px; width:100%; background:#2f3542; color:#fff; border:none; padding:10px; font-size:14px; font-weight:bold; border-radius:6px; cursor:pointer;">
-            닫기
-          </button>
-        </div>
-      `;
 
-      // 기존에 켜져있던 모달이 있다면 지우고 새로 띄움
-      const oldModal = document.getElementById('attendanceDetailModal');
-      if(oldModal) oldModal.remove();
-      
-      document.body.appendChild(modal);
-    }
-
-    // 전역 변수 초기화 (에러 방지용)
-    window.currentAttendanceDates = window.currentAttendanceDates || {};
 </script>
 </body>
 </html>
