@@ -1,3 +1,20 @@
+// 맨 위에 이 함수 추가
+async function logVisitor() {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    await supabaseClient.from('visitor_logs').insert([{ ip: data.ip }]);
+  } catch (err) {}
+}
+
+// window.onload 함수 맨 윗줄에 호출 추가
+window.onload = function() {
+  logVisitor(); // <--- 이거 추가
+  updateWeather();
+  loadHomeRanking(); 
+  setTimeout(openNoticeModal, 500);
+};
+
 const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
     const TOTAL = 14, ADMIN_KEY = '0179', MASTER_KEY = '0179';
     const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
