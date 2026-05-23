@@ -1,33 +1,3 @@
-// 1. logVisitor 함수는 파일 맨 위에 두세요
-async function logVisitor() {
-  console.log("★★ logVisitor 실행 시작 ★★"); // 이게 뜨는지 확인!
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    console.log("확인된 IP:", data.ip); 
-    
-    const { error } = await supabaseClient.from('visitor_logs').insert([{ ip: data.ip }]);
-    if (error) {
-        console.error("Supabase 저장 실패:", error); // 여기서 에러가 나는지 확인!
-    } else {
-        console.log("Supabase 저장 성공!");
-    }
-  } catch (err) {
-    console.error("fetch 에러:", err);
-  }
-}
-
-
-// 2. window.onload는 딱 하나만 있어야 합니다! 
-// 기존에 8번 줄부터 12번 줄에 있던 window.onload와 
-// 아래쪽에 또 있던 window.onload를 다 지우고 아래 하나로 합치세요.
-window.onload = function() {
-  logVisitor();          // 방문자 기록 (추가)
-  updateWeather();       // 날씨 업데이트
-  loadHomeRanking();     // 랭킹 불러오기
-  setTimeout(openNoticeModal, 500); // 공지사항
-};
-
 const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
     const TOTAL = 14, ADMIN_KEY = '0179', MASTER_KEY = '0179';
     const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
