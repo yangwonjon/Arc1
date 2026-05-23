@@ -1,19 +1,21 @@
-// 맨 위에 이 함수 추가
+// 코드 수정: window.onload를 하나로 합칩니다.
+window.onload = function() {
+  logVisitor();          // 방문자 기록 (추가된 기능)
+  updateWeather();       // 날씨 업데이트
+  loadHomeRanking();     // 랭킹 불러오기
+  setTimeout(openNoticeModal, 500); // 공지사항
+};
+
+// logVisitor 함수는 그대로 유지
 async function logVisitor() {
   try {
     const response = await fetch('https://api.ipify.org?format=json');
     const data = await response.json();
     await supabaseClient.from('visitor_logs').insert([{ ip: data.ip }]);
-  } catch (err) {}
+  } catch (err) {
+    // 에러 발생 시 조용히 넘김
+  }
 }
-
-// window.onload 함수 맨 윗줄에 호출 추가
-window.onload = function() {
-  logVisitor(); // <--- 이거 추가
-  updateWeather();
-  loadHomeRanking(); 
-  setTimeout(openNoticeModal, 500);
-};
 
 const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
     const TOTAL = 14, ADMIN_KEY = '0179', MASTER_KEY = '0179';
