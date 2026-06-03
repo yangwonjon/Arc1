@@ -120,7 +120,7 @@
   <div class="ranking-container" style="text-align: center;">
   <!-- 제목과 배지를 가로로 나란히 두고 정중앙(justify-content: center) 정렬 -->
   <div class="ranking-title" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-weight: bold;">
-    👑 5월 출석 랭킹 
+    👑 6월 출석 랭킹 
     <span style="font-size: 13px; font-weight: bold; color: #e03131; background: #fff5f5; border: 1px solid #ffc9c9; padding: 2px 6px; border-radius: 4px; display: inline-block;">
       40% 미만시 벌금 5만원
     </span>
@@ -232,7 +232,7 @@
   </div>
 <script>
   const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
-    const TOTAL = 14, ADMIN_KEY = '0179', MASTER_KEY = '0179';
+    const TOTAL = 12, ADMIN_KEY = '0179', MASTER_KEY = '0179';
     const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
     const supabaseClient = window.supabase.createClient("https://ndctjtuxpkwdldhqbnih.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY");
 
@@ -244,117 +244,100 @@
       setTimeout(openNoticeModal, 500);
     };
         async function loadHomeRanking() {
-      // name과 함께 created_at(날짜) 데이터도 최신순으로 정렬해서 가져옵니다.
-      const { data } = await supabaseClient.from('attendance').select('name, created_at').order('created_at', { ascending: false });
+  // 1. Supabase에서 전체 출석 데이터 가져오기
+  const { data } = await supabaseClient.from('attendance').select('name, created_at').order('created_at', { ascending: false });
+  
+  const countsRanking = {}; 
+  const lastDateRanking = {};
+  const allDatesRanking = {}; // 각 회원별 6월 전체 출석일을 담을 배열
+  const weeks = ['일', '월', '화', '수', '목', '금', '토'];
+  
+  MEMBERS.forEach(m => {
+    countsRanking[m] = 0;
+    lastDateRanking[m] = '-';
+    allDatesRanking[m] = []; 
+  });
+  
+  data?.forEach(r => { 
+    if(countsRanking[r.name] !== undefined) {
       
-      const countsRanking = {}; 
-      const lastDateRanking = {};
-      const allDatesRanking = {}; // 각 회원별 전체 출석일을 담을 배열
-      const weeks = ['일', '월', '화', '수', '목', '금', '토'];
+      // 2. 한국 시간(KST) 날짜 객체로 변환
+      const kstDate = new Date(r.created_at);
+      const year = kstDate.getFullYear();
+      const monthInt = kstDate.getMonth() + 1; // 1월이 0이므로 +1
       
-      MEMBERS.forEach(m => {
-        countsRanking[m] = 0;
-        lastDateRanking[m] = '-';
-        allDatesRanking[m] = []; 
-      });
+      // ⭐ [핵심 조건 추가] 2026년 6월 데이터가 아니라면 계산하지 않고 즉시 패스(skip)
+      if (year !== 2026 || monthInt !== 6) {
+        return; 
+      }
+
+      // ---------------- 여기서부터는 오직 '6월 데이터'만 실행됩니다 ----------------
+      countsRanking[r.name]++;
       
-      data?.forEach(r => { 
-        if(countsRanking[r.name] !== undefined) {
-          countsRanking[r.name]++;
-          
-          // 1. Supabase의 UTC 시각을 한국 시간(KST) 날짜 객체로 변환
-          const kstDate = new Date(r.created_at);
-          
-          // 연, 월, 일, 시, 분 추출
-          let month = String(kstDate.getMonth() + 1).padStart(2, '0');
-          let day = String(kstDate.getDate()).padStart(2, '0');
-          const hours = kstDate.getHours();
-          const minutes = kstDate.getMinutes();
-          
-          let monthDay = `${month}-${day}`;
-          let dayOfWeek = kstDate.getDay(); // 0: 일, 1: 월 ...
-
-          // ★ [핵심 특수 조건] 송지용 5월 14일 데이터 강제 변환
-          // DB에는 5월 14일로 들어있지만, 화면에는 5월 13일(수요일)로 강제 변경합니다.
-          if (r.name === '송지용' && monthDay === '05-14') {
-            monthDay = '05-13';
-            dayOfWeek = 3; // 수요일로 강제 고정
-          }
-          
-          const weekName = weeks[dayOfWeek]; 
-
-          // 2. 출석 종류(접미사) 판별 로직
-          let suffix = '';
-          
-          // [조건 1] 5월 15일은 전원 무조건 시티런
-          if (monthDay === '05-15') {
-            suffix = ' (시티런)';
-          } 
-          // [조건 2] 고영지 5월 13일은 무조건 대체런
-          else if (r.name === '고영지' && monthDay === '05-13') {
-            suffix = ' (대체런)';
-          } 
-          // [조건 3] 송지용 5월 8일과 (방금 바꾼) 5월 13일은 무조건 대체런
-          else if (r.name === '송지용' && (monthDay === '05-08' || monthDay === '05-13')) {
-            suffix = ' (대체런)';
-          } 
-          // [기본 규칙] 그 외에는 시간대로 판별 (20:02 ~ 21:00 정규 출석)
-          else {
-            const timeValue = hours * 60 + minutes; 
-            const isRegularAttendance = (timeValue >= 1202 && timeValue <= 1260);
-            suffix = isRegularAttendance ? '' : ' (대체런)';
-          }
-          
-          const formattedDate = `${monthDay} (${weekName})${suffix}`;
-
-          allDatesRanking[r.name].push(formattedDate);
-          
-          // ★ [최근 일자 반영 보정] 변환된 날짜를 기준으로 최근 출석일을 기록합니다.
-          if(lastDateRanking[r.name] === '-') {
-            lastDateRanking[r.name] = `${monthDay} ${weekName}`; 
-          }
-        }
-      });
+      let month = String(monthInt).padStart(2, '0');
+      let day = String(kstDate.getDate()).padStart(2, '0');
+      const hours = kstDate.getHours();
+      const minutes = kstDate.getMinutes();
       
-      window.currentAttendanceDates = allDatesRanking;
+      let monthDay = `${month}-${day}`;
+      let dayOfWeek = kstDate.getDay(); 
+      const weekName = weeks[dayOfWeek]; 
 
-      const sorted = MEMBERS.map(n => {
-        const count = countsRanking[n];
-        const rate = Math.round(count / TOTAL * 100);
-        const lastDate = lastDateRanking[n];
-        return { name: n, count, rate, lastDate };
-      }).sort((a,b) => b.count - a.count);
+      // 3. 6월 출석 종류(대체런 / 정규) 판별 규칙
+      let suffix = '';
       
-      document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => {
-        const isPenalty = m.rate < 40;
-        const penaltyClass = isPenalty ? 'penalty-row' : '';
-        const rankClass = i < 3 ? 'rank-'+(i+1) : '';
-
-        return `
-          <div class="ranking-item ${rankClass} ${penaltyClass}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 6px; box-sizing: border-box; width: 100%;">
-            
-            <!-- 1. 등수 좌측 고정 -->
-            <span class="rank-num" style="flex-shrink: 0; width: 22px; text-align: left;">${i+1}</span>
-            
-            <!-- 2. 이름 및 최근 날짜 -->
-            <div class="rank-name" style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; text-align: left; overflow: hidden; white-space: nowrap;">
-              <span style="font-size: 17px; font-weight: bold; flex-shrink: 0;">${m.name}${isPenalty ? '⚠️' : ''}</span>
-              <span style="font-weight: 600; color: #2f3542; font-size: 12px; background: #eccc68; padding: 1px 4px; border-radius: 4px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">최근: ${m.lastDate}</span>
-            </div>
-            
-            <!-- 3. 우측 고정 영역 -->
-            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-              <button onclick="showMemberAttendanceDetail('${m.name}')" style="background: #f1f3f5; border: 1px solid #dee2e6; color: #495057; font-size: 11px; font-weight: bold; cursor: pointer; padding: 3px 6px; border-radius: 5px; white-space: nowrap;">
-                현황보기
-              </button>
-              <span class="rank-val" style="white-space: nowrap; font-size: 14px; min-width: 65px; text-align: right;">
-                ${m.count}회 (<span style="font-size: 14px; font-weight: bold;">${m.rate}%</span>)
-              </span>
-            </div>
-
-          </div>`;
-      }).join('');
+      // [시간 규칙] 20:02 ~ 21:00 정규 출석, 그 외에는 대체런
+      const timeValue = hours * 60 + minutes; 
+      const isRegularAttendance = (timeValue >= 1202 && timeValue <= 1260);
+      suffix = isRegularAttendance ? '' : ' (대체런)';
+      
+      const formattedDate = `${monthDay} (${weekName})${suffix}`;
+      allDatesRanking[r.name].push(formattedDate);
+      
+      // 최근 일자 반영 (가장 최신 날짜 하나만 기록)
+      if(lastDateRanking[r.name] === '-') {
+        lastDateRanking[r.name] = `${monthDay} ${weekName}`; 
+      }
     }
+  });
+  
+  window.currentAttendanceDates = allDatesRanking;
+
+  // 4. 랭킹 정렬 및 퍼센트 계산
+  const sorted = MEMBERS.map(n => {
+    const count = countsRanking[n];
+    const rate = Math.round(count / TOTAL * 100);
+    const lastDate = lastDateRanking[n];
+    return { name: n, count, rate, lastDate };
+  }).sort((a,b) => b.count - a.count);
+  
+  // 5. 화면에 랭킹 HTML 그려주기
+  document.getElementById('homeRankingList').innerHTML = sorted.map((m, i) => {
+    const isPenalty = m.rate < 40;
+    const penaltyClass = isPenalty ? 'penalty-row' : '';
+    const rankClass = i < 3 ? 'rank-'+(i+1) : '';
+
+    return `
+      <div class="ranking-item ${rankClass} ${penaltyClass}" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 6px; box-sizing: border-box; width: 100%;">
+        <span class="rank-num" style="flex-shrink: 0; width: 22px; text-align: left;">${i+1}</span>
+        
+        <div class="rank-name" style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; text-align: left; overflow: hidden; white-space: nowrap;">
+          <span style="font-size: 17px; font-weight: bold; flex-shrink: 0;">${m.name}${isPenalty ? '⚠️' : ''}</span>
+          <span style="font-weight: 600; color: #2f3542; font-size: 12px; background: #eccc68; padding: 1px 4px; border-radius: 4px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">최근: ${m.lastDate}</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button onclick="showMemberAttendanceDetail('${m.name}')" style="background: #f1f3f5; border: 1px solid #dee2e6; color: #495057; font-size: 11px; font-weight: bold; cursor: pointer; padding: 3px 6px; border-radius: 5px; white-space: nowrap;">
+            현황보기
+          </button>
+          <span class="rank-val" style="white-space: nowrap; font-size: 14px; min-width: 65px; text-align: right;">
+            ${m.count}회 (<span style="font-size: 14px; font-weight: bold;">${m.rate}%</span>)
+          </span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 
 
 
