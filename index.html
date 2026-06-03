@@ -457,13 +457,47 @@
       } catch (e) {}
     }
 
-    async function loadAttendance() {
-      const { data } = await supabaseClient.from('attendance').select('name');
-      const countsAtt = {}; MEMBERS.forEach(m => countsAtt[m] = 0);
-      data?.forEach(r => { if(countsAtt[r.name] !== undefined) countsAtt[r.name]++; });
-      document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => `<div class="member-card" onclick="doAttend('${m}')"><b>${m}</b><br><small style="color:#999">${countsAtt[m]}회</small></div>`).join('');
-      document.getElementById('attendanceBody').innerHTML = MEMBERS.map(m => `<tr><td>${m}</td><td>${countsAtt[m]}회</td><td>${Math.round(countsAtt[m]/TOTAL*100)}%</td><td><button class="adj-btn" onclick="adjustAttendance('${m}', 1)">+</button> <button class="adj-btn" onclick="adjustAttendance('${m}', -1)">-</button></td></tr>`).join('');
-    }
+      async function loadAttendance() {
+    // Supabase에서 데이터를 가져와서 자바스크립트로 2026년 6월 데이터만 필터링합니다.
+    const { data } = await supabaseClient.from('attendance').select('name, created_at');
+    
+    const countsAtt = {}; 
+    MEMBERS.forEach(m => countsAtt[m] = 0);
+    
+    data?.forEach(r => { 
+      if(countsAtt[r.name] !== undefined) {
+        const kstDate = new Date(r.created_at);
+        const year = kstDate.getFullYear();
+        const monthInt = kstDate.getMonth() + 1; 
+        
+        // 2026년 6월 데이터가 아니면 카운트에서 제외
+        if (year !== 2026 || monthInt !== 6) {
+          return; 
+        }
+        countsAtt[r.name]++;
+      }
+    });
+    
+    // 6월 데이터만 반영된 카운트로 출석 카드 생성
+    document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => `
+      <div class="member-card" onclick="doAttend('${m}')">
+        <b>${m}</b><br>
+        <small style="color:#999">${countsAtt[m]}회</small>
+      </div>`).join('');
+      
+    // 6월 데이터만 반영된 카운트로 하단 관리자 테이블 생성
+    document.getElementById('attendanceBody').innerHTML = MEMBERS.map(m => `
+      <tr>
+        <td>${m}</td>
+        <td>${countsAtt[m]}회</td>
+        <td>${Math.round(countsAtt[m]/TOTAL*100)}%</td>
+        <td>
+          <button class="adj-btn" onclick="adjustAttendance('${m}', 1)">+</button> 
+          <button class="adj-btn" onclick="adjustAttendance('${m}', -1)">-</button>
+        </td>
+      </tr>`).join('');
+  }
+
 
     function checkLocation() {
       const bar = document.getElementById('locBar'), txt = document.getElementById('locText');
