@@ -57,7 +57,7 @@
   100% { transform: translateX(50%) translateY(50%) rotate(30deg); }
 }
 
-    .home-logo img { width: 280px; border-radius: 15px; }
+    .home-logo img { width: 280px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     .weather-info { width: 100%; max-width: 450px; background: white; border-radius: 16px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .weather-grid { display: flex; justify-content: space-between; gap: 5px; margin-top: 8px; }
     .weather-item { flex: 1; padding: 8px 4px; border-radius: 10px; background: #fafafa; border: 1px solid #f0f0f0; min-width: 0; }
@@ -109,7 +109,16 @@
   opacity: 0;
   pointer-events: none; /* 사라진 뒤 클릭 방해 금지 */
 }
-
+/* 1. 로딩바 네온 효과 */
+svg circle {
+  stroke: #007bff;
+  filter: drop-shadow(0 0 8px #007bff);
+}
+#dayDisplay {
+  font-family: 'Orbitron', sans-serif !important;
+  letter-spacing: 2px !important;
+  text-transform: uppercase !important;
+}
   </style>
 </head>
 <body>
@@ -120,10 +129,11 @@
     </circle>
   </svg>
 <div class="loader-text" style="color: white; font-size: 20px; font-weight: bold; margin-top: 20px; margin-bottom: 20px;" id="loadPercent">0%</div>
-<div id="dateDisplay" style="text-align: center; color: #666; font-size: 14px; margin-top: 10px; margin-bottom: 10px;">2026. 04. 04</div>
-<div id="dayDisplay" style="text-align: center; color: #007bff; font-size: 18px; font-weight: bold; margin-bottom: 30px;">
-  <span style="color: #f1c40f;">ARC 2기</span> 1일차
+<div id="dateDisplay" style="text-align: center; color: #aaa; font-size: 13px; margin-top: 10px;">2026. 06. 06</div>
+<div id="dayDisplay" style="text-align: center; color: white; font-size: 20px; font-weight: bold; margin-top: 5px;">
+    <span style="color: #f1c40f;">ARC 2기</span> 1일차
 </div>
+
 
 </div>
   <div class="navbar">...</div>
@@ -272,9 +282,9 @@ const interval = setInterval(() => {
 
   // [수정된 부분] 화면 업데이트
   document.getElementById('loadPercent').innerText = count + '%';
-  document.getElementById('dateDisplay').innerText = dateStr;
-  // 기존의 innerText 부분을 아래와 같이 수정하세요
+  // 이 줄을 찾아서 바꾸세요
 document.getElementById('dayDisplay').innerHTML = '<span style="color: #f1c40f;">ARC 2기</span> ' + (currentDayIndex + 1) + '일차';
+
 
 
   // 로딩 완료 처리
