@@ -261,33 +261,28 @@ svg circle {
     <div class="modal-content"></div>
   </div>
 <script>
+// [교체할 코드]
+const now = new Date();
+const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+const today = new Date(utc + (9 * 60 * 60 * 1000)); // 한국 시간 보정
+
 const startDate = new Date(2026, 3, 4); // 4월 4일
-const today = new Date();
-const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)); // 오늘까지 총 일수
+const diffDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)); 
+
+// 상단 날짜 텍스트를 오늘 날짜로 자동 표시
+document.getElementById('dateDisplay').innerText = 
+  today.getFullYear() + '. ' + 
+  String(today.getMonth() + 1).padStart(2, '0') + '. ' + 
+  String(today.getDate()).padStart(2, '0');
 
 let count = 0; 
 const interval = setInterval(() => {
   count += 1;
-  
-  // 현재 퍼센트에 맞춰 날짜 및 일수 계산
   const currentDayIndex = Math.round((count / 100) * diffDays);
   
-  let dateObj = new Date(startDate);
-  dateObj.setDate(startDate.getDate() + currentDayIndex);
-  
-  // 날짜 포맷팅
-  let dateStr = dateObj.getFullYear() + '. ' + 
-                String(dateObj.getMonth() + 1).padStart(2, '0') + '. ' + 
-                String(dateObj.getDate()).padStart(2, '0');
-
-  // [수정된 부분] 화면 업데이트
   document.getElementById('loadPercent').innerText = count + '%';
-  // 이 줄을 찾아서 바꾸세요
-document.getElementById('dayDisplay').innerHTML = '<span style="color: #f1c40f;">ARC 2기</span> ' + (currentDayIndex + 1) + '일차';
+  document.getElementById('dayDisplay').innerHTML = '<span style="color: #f1c40f;">ARC 2기</span> ' + currentDayIndex + '일차';
 
-
-
-  // 로딩 완료 처리
   if(count >= 100) {
     clearInterval(interval);
     setTimeout(() => {
@@ -298,6 +293,7 @@ document.getElementById('dayDisplay').innerHTML = '<span style="color: #f1c40f;"
     }, 500);
   }
 }, 30);
+
 
   const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건'];
     const TOTAL = 12, ADMIN_KEY = '0179', MASTER_KEY = '0179';
