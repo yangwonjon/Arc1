@@ -728,71 +728,52 @@ async function doAttend(name) {
     }
   }
 }
-// --- [단계별 디버깅이 포함된 최종 코드] ---
 
-async function adjustAttendance(name, amount) {
-    const key = prompt("관리자 비밀번호를 입력하세요.");
-    if (key !== ADMIN_KEY && key !== MASTER_KEY) {
+    async function adjustAttendance(name, amount) {
+      const key = prompt("관리자 비밀번호를 입력하세요.");
+      if (key !== ADMIN_KEY && key !== MASTER_KEY) {
         alert("비밀번호가 틀렸습니다.");
         return;
+      }
+
+      if (amount > 0) {
+        const { error } = await supabaseClient
+          .from('attendance')
+          .insert([{ name: name }]);
+        
+        if (error) {
+          alert("추가 중 오류 발생");
+          return;
+        }
+      } else {
+        const { data: latestRecord } = await supabaseClient
+          .from('attendance')
+          .select('id')
+          .eq('name', name)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (latestRecord) {
+          const { error } = await supabaseClient
+            .from('attendance')
+            .delete()
+            .eq('id', latestRecord.id);
+          
+          if (error) {
+            alert("삭제 중 오류 발생");
+            return;
+          }
+        } else {
+          alert("삭제할 출석 기록이 없습니다.");
+          return;
+        }
+      }
+
+      alert("조정 완료!");
+      loadAttendance();
+      loadHomeRanking();
     }
-
-    if (amount > 0) {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.click();
-
-        fileInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            // 디버깅용 로그 상태창
-            let status = "시작함...";
-            const updateStatus = (msg) => { status = msg; console.log(msg); alert("진행 상황: " + msg); };
-
-            try {
-                // 1단계: 업로드 시도
-                updateStatus("1단계: 사진을 업로드 중...");
-                const safeName = `admin_${Date.now()}.jpg`;
-                const { error: uploadError } = await supabaseClient.storage.from('attend').upload(safeName, file);
-                if (uploadError) throw new Error("업로드 실패: " + uploadError.message);
-                
-                const { data: urlData } = supabaseClient.storage.from('attend').getPublicUrl(safeName);
-                const publicUrl = urlData.publicUrl;
-                updateStatus("1단계 완료: 사진 업로드 성공");
-
-                // 2단계: API 통신 시도
-                updateStatus("2단계: 서버(Edge Function) 호출 시도...");
-                const response = await fetch('https://ndctjtuxpkwdldhqbnih.supabase.co/functions/v1/super-task', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer aion_prod_da594237e9f64694ac25c6bae3dd06255751cb7a1ede4f439c87d06ec08e57d5' // <--- 여기서 대시보드 키를 넣으세요
-                    },
-                    body: JSON.stringify({ imageUrl: publicUrl, name: name })
-                });
-
-                if (!response.ok) throw new Error("서버 응답 오류 (코드: " + response.status + ")");
-                updateStatus("2단계 완료: 서버 통신 성공");
-
-                // 3단계: DB 기록
-                updateStatus("3단계: 데이터베이스 저장 중...");
-                await processAttendanceAdjustment(name, amount, publicUrl);
-                updateStatus("최종 완료: 모든 작업 성공!");
-                
-            } catch (err) {
-                // 어디서 막혔는지 정확히 알려줌
-                alert("❌ 에러 발생 위치 [" + status + "]\n\n상세 내용: " + err.message);
-            }
-        };
-    } else {
-        await processAttendanceAdjustment(name, amount);
-    }
-}
-
-
-
 
     /* ===================== 오목 게임 로직 ===================== */
     const omokCanvas = document.getElementById('omokCanvas');
