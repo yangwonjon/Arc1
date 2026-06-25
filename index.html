@@ -81,6 +81,13 @@
 <div class="header">🏃 ARC 2026</div>
 
 <div style="padding: 16px 0 0;">
+  <!-- 카운트다운 -->
+  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 0 16px 10px; padding: 12px 16px; border-radius: 12px; background: #1a1a2e; border: 1px solid #e74c3c;">
+    <div style="font-size:11px; color:#aaa; margin-bottom:4px;">⚠️ 사이트 자동삭제 예정</div>
+    <div id="countdownTimer" style="font-size:22px; font-weight:bold; font-family:monospace; letter-spacing:2px; color:#e74c3c;">00:00:00:00</div>
+    <div style="font-size:11px; color:#888; margin-top:3px;">2026년 6월 27일 23:00까지</div>
+  </div>
+
   <!-- 위치 상태 -->
   <div class="loc-bar" id="locBar">
     <span class="loc-dot"></span>
@@ -139,7 +146,25 @@
   window.onload = function() {
     checkLocation();
     loadData();
+    startCountdown();
   };
+
+  function startCountdown() {
+    const target = new Date('2026-06-27T23:00:00+09:00').getTime();
+    function update() {
+      const now = Date.now();
+      const diff = target - now;
+      const el = document.getElementById('countdownTimer');
+      if (diff <= 0) { el.textContent = '종료됨'; el.style.color = '#888'; return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      el.textContent = `${String(d).padStart(2,'0')}일 ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+    update();
+    setInterval(update, 1000);
+  }
 
   // ─── 위치 확인 ───────────────────────────────────────
   function checkLocation() {
