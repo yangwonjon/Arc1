@@ -24,10 +24,10 @@
 
     /* 출석 멤버 그리드 */
     .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 400px; margin: 0 auto 24px auto; padding: 0 16px; }
-    .member-card { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 22px 10px 16px; text-align: center; cursor: pointer; transition: 0.15s; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-    .member-card:active { transform: scale(0.97); }
-    .member-card b { font-size: 17px; }
-    .member-card small { color: #999; font-size: 12px; display: block; margin-top: 4px; }
+    .member-card { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 22px 10px 18px; text-align: center; cursor: pointer; transition: 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .member-card:active { transform: scale(0.96); background: #f0f0f0; }
+    .member-card b { font-size: 18px; color: #333; display: block; }
+    .member-card small { color: #999; font-size: 12px; display: block; margin-top: 5px; }
 
     /* 대체런 버튼 */
     .sub-btn { display: block; width: calc(100% - 24px); max-width: 376px; margin: 0 auto 8px; padding: 10px; background: #fff3cd; border: 1px dashed #e6a817; border-radius: 10px; color: #b8860b; font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; }
@@ -188,12 +188,26 @@
     });
 
     // 멤버 카드 렌더
-    document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => `
-      <div class="member-card" onclick="openPickModal('${m}')">
-        <b>${m}</b>
-        <small>${counts[m]}회 (${Math.round(counts[m]/TOTAL*100)}%)</small>
-      </div>
-    `).join('');
+    const STATUS = {
+      '양원준': { label: '탈퇴', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
+      '양지훈': { label: '미활동', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
+      '김해건': { label: '질병', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
+    };
+
+    document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => {
+      const s = STATUS[m];
+      return s ? `
+        <div class="member-card" style="${s.cardStyle}">
+          <b style="${s.nameStyle}">${m}</b>
+          <small style="background:rgba(255,255,255,0.15); color:white; padding:2px 8px; border-radius:10px; margin-top:5px; display:inline-block;">${s.label}</small>
+        </div>
+      ` : `
+        <div class="member-card" onclick="openPickModal('${m}')">
+          <b>${m}</b>
+          <small>${counts[m]}회 (${Math.round(counts[m]/TOTAL*100)}%)</small>
+        </div>
+      `;
+    }).join('');
 
     // 랭킹 렌더
     const sorted = MEMBERS.map(n => ({
@@ -203,17 +217,23 @@
       last: lastDate[n]
     })).sort((a,b) => b.count - a.count);
 
+    const EXCLUDED = ['양원준', '김해건', '양지훈'];
+
     document.getElementById('rankingList').innerHTML = sorted.map((m, i) => {
       const isPenalty = m.rate < 40;
+      const isExcluded = EXCLUDED.includes(m.name);
       return `
-        <div class="ranking-item ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''} ${isPenalty?'penalty-row':''}">
-          <span class="rank-num">${i+1}</span>
+        <div class="ranking-item ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''} ${isPenalty&&!isExcluded?'penalty-row':''}">
+          <span class="rank-num" style="${isExcluded?'color:#ccc;':''}">${i+1}</span>
           <div class="rank-info">
-            <div class="rank-name">${m.name}${isPenalty?' ⚠️':''}</div>
-            <span class="rank-last">최근: ${m.last}</span>
+            <div class="rank-name" style="${isExcluded?'text-decoration:line-through;color:#bbb;':''}">${m.name}</div>
+            ${isExcluded
+              ? `<span class="rank-last" style="color:#bbb;">제외</span>`
+              : `<span class="rank-last">최근: ${m.last}</span>`
+            }
           </div>
           <button class="detail-btn" onclick="showDetail('${m.name}')">현황보기</button>
-          <div class="rank-val">${m.count}회 <span class="rate">${m.rate}%</span></div>
+          <div class="rank-val" style="${isExcluded?'color:#ccc;':''}">${m.count}회 <span class="rate" style="${isExcluded?'color:#ccc;':''}">${m.rate}%</span></div>
         </div>
       `;
     }).join('');
