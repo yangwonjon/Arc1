@@ -13,25 +13,26 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Pretendard', Arial, sans-serif; background: #f8f9fa; color: #333; }
 
-    /* 상단 타이틀 */
     .header { background: #333; color: white; text-align: center; padding: 18px; font-size: 20px; font-weight: bold; letter-spacing: 2px; }
 
-    /* 위치 상태 바 */
     .loc-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px auto; padding: 12px; border-radius: 30px; font-size: 13px; font-weight: bold; max-width: 360px; background: #f0f0f0; color: #888; }
     .loc-bar.ok { background: #e6f9ee; color: #27ae60; border: 1px solid #27ae60; }
     .loc-bar.bad { background: #fdecea; color: #e74c3c; border: 1px solid #e74c3c; }
     .loc-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
-    /* 출석 멤버 그리드 */
+    /* 멤버 그리드 */
     .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 400px; margin: 0 auto 24px auto; padding: 0 16px; }
-    .member-card { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 22px 10px 18px; text-align: center; cursor: pointer; transition: 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-    .member-card:active { transform: scale(0.96); background: #f0f0f0; }
-    .member-card b { font-size: 18px; color: #333; display: block; }
-    .member-card small { color: #999; font-size: 12px; display: block; margin-top: 5px; }
 
-    /* 대체런 버튼 */
-    .sub-btn { display: block; width: calc(100% - 24px); max-width: 376px; margin: 0 auto 8px; padding: 10px; background: #fff3cd; border: 1px dashed #e6a817; border-radius: 10px; color: #b8860b; font-size: 13px; font-weight: bold; cursor: pointer; text-align: center; }
-    .sub-btn:active { background: #ffe69c; }
+    .member-card { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 16px 10px 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .member-card b { font-size: 18px; color: #333; display: block; }
+    .member-card small { color: #999; font-size: 12px; display: block; margin-top: 4px; margin-bottom: 10px; }
+
+    /* 카드 내 버튼 2개 */
+    .card-btns { display: flex; gap: 6px; }
+    .card-btn { flex: 1; padding: 8px 4px; border: none; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.15s; }
+    .card-btn:active { opacity: 0.75; transform: scale(0.96); }
+    .btn-attend { background: #333; color: white; }
+    .btn-sub { background: #fff3cd; color: #b8860b; border: 1px dashed #e6a817; }
 
     /* 랭킹 섹션 */
     .section { background: white; border-radius: 16px; max-width: 400px; margin: 0 auto 20px; padding: 20px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -50,7 +51,6 @@
     .rank-val { font-size: 13px; text-align: right; flex-shrink: 0; }
     .rank-val .rate { font-weight: bold; color: #27ae60; }
     .penalty-row .rank-val .rate { color: #aaa; }
-
     .detail-btn { font-size: 11px; background: #f1f3f5; border: 1px solid #dee2e6; color: #555; padding: 3px 7px; border-radius: 5px; cursor: pointer; margin-right: 6px; white-space: nowrap; }
 
     /* 현황 모달 */
@@ -62,18 +62,6 @@
     .modal-box th { background:#f8f9fa; padding:7px; border-bottom:2px solid #eee; color:#555; }
     .modal-box td { padding:7px; border-bottom:1px solid #f0f0f0; text-align:center; }
     .modal-close { margin-top:14px; width:100%; padding:10px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; }
-
-    /* 대체런 선택 모달 */
-    .pick-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; }
-    .pick-modal.active { display:flex; }
-    .pick-box { background:white; width:100%; max-width:320px; border-radius:16px; padding:24px 20px; text-align:center; }
-    .pick-box h3 { font-size:17px; margin-bottom:6px; }
-    .pick-box p { font-size:13px; color:#888; margin-bottom:20px; }
-    .pick-btns { display:flex; flex-direction:column; gap:10px; }
-    .pick-btn { padding:14px; border:none; border-radius:10px; font-size:15px; font-weight:bold; cursor:pointer; }
-    .pick-btn.regular { background:#333; color:white; }
-    .pick-btn.sub { background:#fff3cd; color:#b8860b; border:1px dashed #e6a817; }
-    .pick-btn.cancel { background:#f8f9fa; color:#888; }
   </style>
 </head>
 <body>
@@ -116,19 +104,6 @@
   </div>
 </div>
 
-<!-- 출석 종류 선택 모달 -->
-<div class="pick-modal" id="pickModal">
-  <div class="pick-box">
-    <h3 id="pickModalName"></h3>
-    <p>출석 종류를 선택하세요</p>
-    <div class="pick-btns">
-      <button class="pick-btn regular" onclick="confirmAttend(false)">✅ 정규 출석</button>
-      <button class="pick-btn sub" onclick="confirmAttend(true)">🔄 대체런</button>
-      <button class="pick-btn cancel" onclick="closePickModal()">취소</button>
-    </div>
-  </div>
-</div>
-
 <script>
   const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건','양지훈'];
   const TOTAL = 12;
@@ -141,7 +116,6 @@
 
   let locationOk = false;
   let allDates = {};
-  let pendingName = null;
 
   window.onload = function() {
     checkLocation();
@@ -207,7 +181,7 @@
       const h = d.getHours(), m = d.getMinutes();
       const t = h * 60 + m;
       const isSub = !(t >= 1202 && t <= 1260);
-      const label = `${mm}-${dd} (${wk})${isSub ? ' 대체런' : ''}`;
+      const label = `${mm}-${dd} (${wk})${isSub ? ' 🔄대체런' : ''}`;
       allDates[r.name].push(label);
       if (lastDate[r.name] === '-') lastDate[r.name] = `${mm}-${dd} ${wk}`;
     });
@@ -227,9 +201,13 @@
           <small style="background:rgba(255,255,255,0.15); color:white; padding:2px 8px; border-radius:10px; margin-top:5px; display:inline-block;">${s.label}</small>
         </div>
       ` : `
-        <div class="member-card" onclick="openPickModal('${m}')">
+        <div class="member-card">
           <b>${m}</b>
           <small>${counts[m]}회 (${Math.round(counts[m]/TOTAL*100)}%)</small>
+          <div class="card-btns">
+            <button class="card-btn btn-attend" onclick="handleAttend('${m}', false)">✅ 출석</button>
+            <button class="card-btn btn-sub" onclick="handleAttend('${m}', true)">🔄 대체런</button>
+          </div>
         </div>
       `;
     }).join('');
@@ -264,53 +242,37 @@
     }).join('');
   }
 
-  // ─── 출석 종류 선택 모달 ───────────────────────────────
-  function openPickModal(name) {
-    if (!locationOk) { alert("위치 인증이 되지 않았습니다. 근처에서 시도해주세요."); return; }
-    pendingName = name;
-    document.getElementById('pickModalName').textContent = name + ' 님';
-    document.getElementById('pickModal').classList.add('active');
-  }
-
-  function closePickModal() {
-    pendingName = null;
-    document.getElementById('pickModal').classList.remove('active');
-  }
-
   // ─── 출석 처리 (정규 / 대체런) ────────────────────────
-  async function confirmAttend(isSubstitute) {
-    const name = pendingName;
-    closePickModal();
-    if (!name) return;
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const storageKey = `attended_${todayStr}`;
-    const savedName = localStorage.getItem(storageKey);
-
-    if (savedName) {
-      if (savedName === name) {
-        if (confirm(`오늘 [${name}]님으로 이미 출석하셨습니다.\n취소하고 다시 체크하시겠습니까?`)) {
-          const { data: rec } = await supabaseClient.from('attendance').select('id').eq('name', name)
-            .gte('created_at', todayStr).order('created_at', { ascending: false }).limit(1).single();
-          if (rec) await supabaseClient.from('attendance').delete().eq('id', rec.id);
-          localStorage.removeItem(storageKey);
-          alert("출석 취소됐습니다.");
-          loadData();
-        }
-      } else {
-        alert(`이 기기에서 오늘 이미 [${savedName}]님으로 출석 완료됐습니다.`);
-      }
+  async function handleAttend(name, isSubstitute) {
+    // 정규 출석만 위치 체크
+    if (!isSubstitute && !locationOk) {
+      alert("위치 인증이 되지 않았습니다. 근처에서 시도해주세요.");
       return;
     }
 
     const label = isSubstitute ? '대체런' : '정규 출석';
+    const todayStr = new Date().toISOString().split('T')[0];
+    const storageKey = `attended_${todayStr}_${name}`;
+    const saved = localStorage.getItem(storageKey);
+
+    if (saved) {
+      if (confirm(`오늘 [${name}]님으로 이미 출석하셨습니다.\n취소하고 다시 체크하시겠습니까?`)) {
+        const { data: rec } = await supabaseClient.from('attendance').select('id').eq('name', name)
+          .gte('created_at', todayStr).order('created_at', { ascending: false }).limit(1).single();
+        if (rec) await supabaseClient.from('attendance').delete().eq('id', rec.id);
+        localStorage.removeItem(storageKey);
+        alert("출석 취소됐습니다.");
+        loadData();
+      }
+      return;
+    }
+
     if (!confirm(`[${name}]님, ${label}으로 출석 체크할까요?`)) return;
 
-    // 대체런이면 새벽 1시 타임스탬프로 강제 삽입 (시간 기반 판별 로직 활용)
     let insertObj = { name };
     if (isSubstitute) {
+      // 대체런: 새벽 1시 타임스탬프로 삽입
       const now = new Date();
-      // KST 기준 오전 1:00 → UTC로 변환 (KST = UTC+9)
       const subTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0);
       insertObj.created_at = subTime.toISOString();
     }
@@ -318,7 +280,7 @@
     const { error } = await supabaseClient.from('attendance').insert([insertObj]);
     if (error) { alert("저장 중 오류가 발생했습니다."); return; }
 
-    localStorage.setItem(storageKey, name);
+    localStorage.setItem(storageKey, label);
     alert(`[${name}]님 ${label} 완료!`);
     loadData();
   }
