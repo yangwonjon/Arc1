@@ -1,307 +1,166 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <link rel="icon" href="logo.png" type="image/png">
-  <link rel="apple-touch-icon" href="logo.png">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="ARC2026">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ARC2026</title>
+  <title>ARC 6월 최종 출석 현황</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Pretendard', Arial, sans-serif; background: #f8f9fa; color: #333; }
+    body { font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; background: #f5f5f5; color: #222; }
 
-    .header { background: #333; color: white; text-align: center; padding: 18px; font-size: 20px; font-weight: bold; letter-spacing: 2px; }
+    .top { padding: 28px 20px 16px; }
+    .top h1 { font-size: 22px; font-weight: 800; }
+    .top p { font-size: 13px; color: #999; margin-top: 4px; }
 
-    .loc-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 16px auto; padding: 12px; border-radius: 30px; font-size: 13px; font-weight: bold; max-width: 360px; background: #f0f0f0; color: #888; }
-    .loc-bar.ok { background: #e6f9ee; color: #27ae60; border: 1px solid #27ae60; }
-    .loc-bar.bad { background: #fdecea; color: #e74c3c; border: 1px solid #e74c3c; }
-    .loc-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .list { padding: 0 16px 40px; max-width: 440px; margin: 0 auto; }
 
-    /* 멤버 그리드 */
-    .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 400px; margin: 0 auto 24px auto; padding: 0 16px; }
+    .row {
+      background: white;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .row.danger { border-left: 3px solid #ff4444; }
+    .row.excluded { opacity: 0.4; }
 
-    .member-card { background: white; border: 2px solid #ddd; border-radius: 14px; padding: 16px 10px 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-    .member-card b { font-size: 18px; color: #333; display: block; }
-    .member-card small { color: #999; font-size: 12px; display: block; margin-top: 4px; margin-bottom: 10px; }
+    .num { font-size: 13px; color: #bbb; width: 18px; text-align: center; flex-shrink: 0; font-weight: 700; }
+    .row:nth-child(1) .num { color: #f5c842; font-size: 16px; }
+    .row:nth-child(2) .num { color: #aaa; }
+    .row:nth-child(3) .num { color: #bf7c3a; }
 
-    /* 카드 내 버튼 2개 */
-    .card-btns { display: flex; gap: 6px; }
-    .card-btn { flex: 1; padding: 8px 4px; border: none; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.15s; }
-    .card-btn:active { opacity: 0.75; transform: scale(0.96); }
-    .btn-attend { background: #333; color: white; }
-    .btn-sub { background: #fff3cd; color: #b8860b; border: 1px dashed #e6a817; }
+    .info { flex: 1; }
+    .name { font-size: 15px; font-weight: 700; }
+    .bar-wrap { margin-top: 6px; background: #eee; border-radius: 100px; height: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 100px; background: #333; transition: width 0.8s ease; }
+    .row.danger .bar-fill { background: #ff4444; }
 
-    /* 랭킹 섹션 */
-    .section { background: white; border-radius: 16px; max-width: 400px; margin: 0 auto 20px; padding: 20px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .section-title { font-size: 15px; font-weight: bold; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .penalty-badge { font-size: 12px; color: #e03131; background: #fff5f5; border: 1px solid #ffc9c9; padding: 2px 6px; border-radius: 4px; }
+    .right { text-align: right; flex-shrink: 0; }
+    .pct { font-size: 17px; font-weight: 800; }
+    .row.danger .pct { color: #ff4444; }
+    .cnt { font-size: 11px; color: #bbb; margin-top: 2px; }
 
-    .ranking-item { display: flex; align-items: center; justify-content: space-between; padding: 11px 4px; border-bottom: 1px solid #f0f0f0; }
-    .ranking-item:last-child { border-bottom: none; }
-    .rank-num { font-weight: 800; width: 22px; color: #ccc; flex-shrink: 0; }
-    .rank-1 .rank-num { color: #f1c40f; font-size: 20px; }
-    .rank-2 .rank-num { color: #aaa; }
-    .rank-3 .rank-num { color: #cd7f32; }
-    .rank-info { flex: 1; min-width: 0; text-align: left; margin-left: 6px; }
-    .rank-name { font-size: 16px; font-weight: bold; }
-    .rank-last { font-size: 11px; color: #888; background: #f5f5f5; padding: 1px 5px; border-radius: 4px; display: inline-block; margin-top: 2px; }
-    .rank-val { font-size: 13px; text-align: right; flex-shrink: 0; }
-    .rank-val .rate { font-weight: bold; color: #27ae60; }
-    .penalty-row .rank-val .rate { color: #aaa; }
-    .detail-btn { font-size: 11px; background: #f1f3f5; border: 1px solid #dee2e6; color: #555; padding: 3px 7px; border-radius: 5px; cursor: pointer; margin-right: 6px; white-space: nowrap; }
+    .detail-btn {
+      margin-top: 4px;
+      font-size: 10px;
+      color: #aaa;
+      background: #f5f5f5;
+      border: none;
+      padding: 3px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
-    /* 현황 모달 */
-    .modal-bg { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:20px; }
-    .modal-bg.active { display: flex; }
-    .modal-box { background: white; width:100%; max-width:320px; border-radius:14px; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
-    .modal-box h3 { text-align:center; font-size:16px; margin-bottom:14px; }
-    .modal-box table { width:100%; border-collapse:collapse; font-size:13px; }
-    .modal-box th { background:#f8f9fa; padding:7px; border-bottom:2px solid #eee; color:#555; }
-    .modal-box td { padding:7px; border-bottom:1px solid #f0f0f0; text-align:center; }
-    .modal-close { margin-top:14px; width:100%; padding:10px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; }
+    /* 모달 */
+    .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; align-items:center; justify-content:center; padding:20px; }
+    .modal-bg.active { display:flex; }
+    .modal-box { background:white; border-radius:14px; padding:20px; width:100%; max-width:300px; max-height:80vh; overflow-y:auto; }
+    .modal-box h3 { font-size:16px; font-weight:800; margin-bottom:12px; }
+    .modal-box table { width:100%; font-size:13px; border-collapse:collapse; }
+    .modal-box td { padding:7px 4px; border-bottom:1px solid #f0f0f0; }
+    .modal-box td:first-child { color:#bbb; font-size:11px; width:28px; }
+    .modal-close { margin-top:12px; width:100%; padding:10px; background:#222; color:white; border:none; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
   </style>
 </head>
 <body>
 
-<div class="header">🏃 ARC 2026</div>
-
-<div style="padding: 16px 0 0;">
-  <!-- 카운트다운 -->
-  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 0 16px 10px; padding: 12px 16px; border-radius: 12px; background: #1a1a2e; border: 1px solid #e74c3c;">
-    <div style="font-size:11px; color:#aaa; margin-bottom:4px;">⚠️ 사이트 자동삭제 예정</div>
-    <div id="countdownTimer" style="font-size:22px; font-weight:bold; font-family:monospace; letter-spacing:2px; color:#e74c3c;">00:00:00:00</div>
-    <div style="font-size:11px; color:#888; margin-top:3px;">2026년 6월 27일 23:00까지</div>
-  </div>
-
-  <!-- 위치 상태 -->
-  <div class="loc-bar" id="locBar">
-    <span class="loc-dot"></span>
-    <span id="locText">위치 확인 중...</span>
-  </div>
-
-  <!-- 멤버 출석 카드 -->
-  <div class="member-grid" id="memberGrid"></div>
-
-  <!-- 출석 현황 랭킹 -->
-  <div class="section" style="margin: 0 16px 24px;">
-    <div class="section-title">
-      6월 출석 현황
-      <span class="penalty-badge">40% 미만시 벌금 5만원</span>
-    </div>
-    <div id="rankingList" style="margin-top:12px;"></div>
-  </div>
+<div class="top" style="max-width:440px; margin:0 auto;">
+  <h1>ARC 6월 최종 출석 현황 </h1>
+  <p></p>
 </div>
 
-<!-- 현황 상세 모달 -->
-<div class="modal-bg" id="detailModal">
+<div class="list" id="list">
+  <div style="text-align:center;padding:40px;color:#ccc;font-size:13px;">불러오는 중...</div>
+</div>
+
+<div class="modal-bg" id="modal">
   <div class="modal-box">
-    <h3 id="detailModalTitle"></h3>
-    <div id="detailModalBody"></div>
-    <button class="modal-close" onclick="document.getElementById('detailModal').classList.remove('active')">닫기</button>
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">닫기</button>
   </div>
 </div>
 
 <script>
-  const MEMBERS = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건','양지훈'];
-  const TOTAL = 12;
-  const MASTER_KEY = '0179';
-  const TARGET = { lat: 33.2549408014355, lng: 126.32857041329 };
-  const supabaseClient = window.supabase.createClient(
+  const MEMBERS  = ['윤민혁','고영지','김민수','송지용','양원준','지항민','김해건','양지훈'];
+  const TOTAL    = 12;
+  const EXCLUDED = new Set(['양원준','김해건','양지훈']);
+  const EXCL_LBL = { '양원준':'탈퇴', '양지훈':'미활동', '김해건':'질병' };
+  let allDates = {};
+
+  const sb = window.supabase.createClient(
     "https://ndctjtuxpkwdldhqbnih.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kY3RqdHV4cGt3ZGxkaHFibmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MTgwMjAsImV4cCI6MjA5MDk5NDAyMH0.SrHCtqlNE4cgepGMw_NoPC56bnJIfV2_t7Hbmj5EXCY"
   );
 
-  let locationOk = false;
-  let allDates = {};
-
-  window.onload = function() {
-    checkLocation();
-    loadData();
-    startCountdown();
-  };
-
-  function startCountdown() {
-    const target = new Date('2026-06-27T23:00:00+09:00').getTime();
-    function update() {
-      const now = Date.now();
-      const diff = target - now;
-      const el = document.getElementById('countdownTimer');
-      if (diff <= 0) { el.textContent = '종료됨'; el.style.color = '#888'; return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      el.textContent = `${String(d).padStart(2,'0')}일 ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    }
-    update();
-    setInterval(update, 1000);
-  }
-
-  // ─── 위치 확인 ───────────────────────────────────────
-  function checkLocation() {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const d = getDist(pos.coords.latitude, pos.coords.longitude, TARGET.lat, TARGET.lng);
-      locationOk = d <= 500;
-      const bar = document.getElementById('locBar');
-      bar.className = locationOk ? 'loc-bar ok' : 'loc-bar bad';
-      document.getElementById('locText').textContent = locationOk ? `✅ 출석 가능 (${Math.round(d)}m)` : `📍 너무 멀어요 (${Math.round(d)}m)`;
-    }, () => {
-      document.getElementById('locText').textContent = '위치 권한 필요';
-    }, { enableHighAccuracy: true });
-  }
-
-  function getDist(l1, g1, l2, g2) {
-    const R = 6371000, dL = (l2-l1)*Math.PI/180, dG = (g2-g1)*Math.PI/180;
-    const a = Math.sin(dL/2)**2 + Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dG/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-
-  // ─── 데이터 로드 ───────────────────────────────────────
-  async function loadData() {
-    const { data } = await supabaseClient.from('attendance').select('name, created_at').order('created_at', { ascending: false });
-
+  async function load() {
+    const { data } = await sb.from('attendance').select('name, created_at').order('created_at', { ascending: false });
     const counts = {}, lastDate = {};
-    allDates = {};
-    MEMBERS.forEach(m => { counts[m] = 0; lastDate[m] = '-'; allDates[m] = []; });
-
-    const weeks = ['일','월','화','수','목','금','토'];
+    MEMBERS.forEach(m => { counts[m] = 0; lastDate[m] = null; allDates[m] = []; });
+    const days = ['일','월','화','수','목','금','토'];
 
     data?.forEach(r => {
       if (counts[r.name] === undefined) return;
       const d = new Date(r.created_at);
       if (d.getFullYear() !== 2026 || d.getMonth() + 1 !== 6) return;
-
       counts[r.name]++;
       const mm = String(d.getMonth()+1).padStart(2,'0');
       const dd = String(d.getDate()).padStart(2,'0');
-      const wk = weeks[d.getDay()];
-      const h = d.getHours(), m = d.getMinutes();
-      const t = h * 60 + m;
+      const wk = days[d.getDay()];
+      const t = d.getHours() * 60 + d.getMinutes();
       const isSub = !(t >= 1202 && t <= 1260);
-      const label = `${mm}-${dd} (${wk})${isSub ? ' 🔄대체런' : ''}`;
-      allDates[r.name].push(label);
-      if (lastDate[r.name] === '-') lastDate[r.name] = `${mm}-${dd} ${wk}`;
+      allDates[r.name].push(`${mm}-${dd} (${wk})${isSub ? ' 🔄' : ''}`);
+      if (!lastDate[r.name]) lastDate[r.name] = `${mm}.${dd}`;
     });
 
-    // 멤버 카드 렌더
-    const STATUS = {
-      '양원준': { label: '탈퇴', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
-      '양지훈': { label: '미활동', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
-      '김해건': { label: '질병', nameStyle: 'color:#aaa;', cardStyle: 'background:#555; cursor:default; opacity:0.6;' },
-    };
+    const active = MEMBERS.filter(m => !EXCLUDED.has(m))
+      .map(m => ({ name: m, count: counts[m], rate: Math.round(counts[m]/TOTAL*100) }))
+      .sort((a, b) => b.count - a.count);
+    const excl = MEMBERS.filter(m => EXCLUDED.has(m))
+      .map(m => ({ name: m, count: counts[m], rate: Math.round(counts[m]/TOTAL*100), excl: true }));
 
-    document.getElementById('memberGrid').innerHTML = MEMBERS.map(m => {
-      const s = STATUS[m];
-      return s ? `
-        <div class="member-card" style="${s.cardStyle}">
-          <b style="${s.nameStyle}">${m}</b>
-          <small style="background:rgba(255,255,255,0.15); color:white; padding:2px 8px; border-radius:10px; margin-top:5px; display:inline-block;">${s.label}</small>
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+
+    [...active, ...excl].forEach((m, i) => {
+      const isPenalty = !m.excl && m.rate < 40;
+      const row = document.createElement('div');
+      row.className = `row${isPenalty ? ' danger' : ''}${m.excl ? ' excluded' : ''}`;
+      row.innerHTML = `
+        <div class="num">${m.excl ? '—' : i + 1}</div>
+        <div class="info">
+          <div class="name">${m.name}${m.excl ? ` <span style="font-size:11px;color:#bbb;font-weight:400;">${EXCL_LBL[m.name]||''}</span>` : ''}</div>
+          ${!m.excl ? `<div class="bar-wrap"><div class="bar-fill" data-w="${m.rate}" style="width:0%"></div></div>` : ''}
         </div>
-      ` : `
-        <div class="member-card">
-          <b>${m}</b>
-          <small>${counts[m]}회 (${Math.round(counts[m]/TOTAL*100)}%)</small>
-          <div class="card-btns">
-            <button class="card-btn btn-attend" onclick="handleAttend('${m}', false)">✅ 출석</button>
-            <button class="card-btn btn-sub" onclick="handleAttend('${m}', true)">🔄 대체런</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // 랭킹 렌더
-    const sorted = MEMBERS.map(n => ({
-      name: n,
-      count: counts[n],
-      rate: Math.round(counts[n]/TOTAL*100),
-      last: lastDate[n]
-    })).sort((a,b) => b.count - a.count);
-
-    const EXCLUDED = ['양원준', '김해건', '양지훈'];
-
-    document.getElementById('rankingList').innerHTML = sorted.map((m, i) => {
-      const isPenalty = m.rate < 40;
-      const isExcluded = EXCLUDED.includes(m.name);
-      return `
-        <div class="ranking-item ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''} ${isPenalty&&!isExcluded?'penalty-row':''}">
-          <span class="rank-num" style="${isExcluded?'color:#ccc;':''}">${i+1}</span>
-          <div class="rank-info">
-            <div class="rank-name" style="${isExcluded?'text-decoration:line-through;color:#bbb;':''}">${m.name}</div>
-            ${isExcluded
-              ? `<span class="rank-last" style="color:#bbb;">제외</span>`
-              : `<span class="rank-last">최근: ${m.last}</span>`
-            }
-          </div>
-          <button class="detail-btn" onclick="showDetail('${m.name}')">현황보기</button>
-          <div class="rank-val" style="${isExcluded?'color:#ccc;':''}">${m.count}회 <span class="rate" style="${isExcluded?'color:#ccc;':''}">${m.rate}%</span></div>
+        <div class="right">
+          <div class="pct">${m.rate}%</div>
+          <div class="cnt">${m.count}/${TOTAL}회</div>
+          ${!m.excl ? `<button class="detail-btn" onclick="showDetail('${m.name}')">기록</button>` : ''}
         </div>
       `;
-    }).join('');
+      list.appendChild(row);
+    });
+
+    setTimeout(() => {
+      document.querySelectorAll('.bar-fill[data-w]').forEach(el => {
+        el.style.width = el.dataset.w + '%';
+      });
+    }, 100);
   }
 
-  // ─── 출석 처리 (정규 / 대체런) ────────────────────────
-  async function handleAttend(name, isSubstitute) {
-    // 정규 출석만 위치 체크
-    if (!isSubstitute && !locationOk) {
-      alert("위치 인증이 되지 않았습니다. 근처에서 시도해주세요.");
-      return;
-    }
-
-    const label = isSubstitute ? '대체런' : '정규 출석';
-    const todayStr = new Date().toISOString().split('T')[0];
-    const storageKey = `attended_${todayStr}_${name}`;
-    const saved = localStorage.getItem(storageKey);
-
-    if (saved) {
-      if (confirm(`오늘 [${name}]님으로 이미 출석하셨습니다.\n취소하고 다시 체크하시겠습니까?`)) {
-        const { data: rec } = await supabaseClient.from('attendance').select('id').eq('name', name)
-          .gte('created_at', todayStr).order('created_at', { ascending: false }).limit(1).single();
-        if (rec) await supabaseClient.from('attendance').delete().eq('id', rec.id);
-        localStorage.removeItem(storageKey);
-        alert("출석 취소됐습니다.");
-        loadData();
-      }
-      return;
-    }
-
-    if (!confirm(`[${name}]님, ${label}으로 출석 체크할까요?`)) return;
-
-    let insertObj = { name };
-    if (isSubstitute) {
-      // 대체런: 새벽 1시 타임스탬프로 삽입
-      const now = new Date();
-      const subTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0);
-      insertObj.created_at = subTime.toISOString();
-    }
-
-    const { error } = await supabaseClient.from('attendance').insert([insertObj]);
-    if (error) { alert("저장 중 오류가 발생했습니다."); return; }
-
-    localStorage.setItem(storageKey, label);
-    alert(`[${name}]님 ${label} 완료!`);
-    loadData();
-  }
-
-  // ─── 현황 상세 모달 ────────────────────────────────────
   function showDetail(name) {
     const dates = allDates[name] || [];
-    document.getElementById('detailModalTitle').textContent = name + ' 님의 출석 현황';
-    if (dates.length === 0) {
-      document.getElementById('detailModalBody').innerHTML = '<p style="text-align:center;color:#aaa;padding:16px 0;">출석 기록 없음</p>';
-    } else {
-      document.getElementById('detailModalBody').innerHTML = `
-        <div style="max-height:260px;overflow-y:auto;">
-          <table>
-            <thead><tr><th>#</th><th>날짜 (요일)</th></tr></thead>
-            <tbody>${dates.map((d,i) => `<tr><td style="color:#aaa">${i+1}</td><td>${d}</td></tr>`).join('')}</tbody>
-          </table>
-        </div>`;
-    }
-    document.getElementById('detailModal').classList.add('active');
+    document.getElementById('modalTitle').textContent = name;
+    document.getElementById('modalBody').innerHTML = dates.length
+      ? `<table><tbody>${dates.map((d,i)=>`<tr><td>${i+1}</td><td>${d}</td></tr>`).join('')}</tbody></table>`
+      : '<p style="color:#ccc;text-align:center;padding:16px;">기록 없음</p>';
+    document.getElementById('modal').classList.add('active');
   }
+
+  load();
 </script>
 </body>
 </html>
